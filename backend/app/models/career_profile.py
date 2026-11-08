@@ -3,10 +3,9 @@ import uuid
 
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import Uuid
+from sqlalchemy import DateTime, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.core.database import Base
 
 
@@ -83,51 +82,58 @@ class CareerProfile(Base):
         nullable=False,
     )
 
+    # Resume relationship
     resumes = relationship(
-    "Resume",
-    back_populates="career_profile",
-    cascade="all, delete-orphan",
-    passive_deletes=True,
-)
+        "Resume",
+        back_populates="career_profile",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
-educations = relationship(
-    "Education",
-    back_populates="career_profile",
-    cascade="all, delete-orphan",
-    passive_deletes=True,
-)
+    # Education relationship
+    educations = relationship(
+        "Education",
+        back_populates="career_profile",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
-work_experiences = relationship(
-    "WorkExperience",
-    back_populates="career_profile",
-    cascade="all, delete-orphan",
-    passive_deletes=True,
-)
+    # Work experience relationship
+    work_experiences = relationship(
+        "WorkExperience",
+        back_populates="career_profile",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
-technical_skills = relationship(
-    "TechnicalSkill",
-    back_populates="career_profile",
-    cascade="all, delete-orphan",
-    passive_deletes=True,
-)
+    # Technical skills relationship
+    technical_skills = relationship(
+        "TechnicalSkill",
+        back_populates="career_profile",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
-projects = relationship(
-    "Project",
-    back_populates="career_profile",
-    cascade="all, delete-orphan",
-    passive_deletes=True,
-)
+    # Projects relationship
+    projects = relationship(
+        "Project",
+        back_populates="career_profile",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
-certifications = relationship(
-    "Certification",
-    back_populates="career_profile",
-    cascade="all, delete-orphan",
-    passive_deletes=True,
-)
+    # Certifications relationship
+    certifications = relationship(
+        "Certification",
+        back_populates="career_profile",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
-achievements = relationship(
-    "Achievement",
-    back_populates="career_profile",
-    cascade="all, delete-orphan",
-    passive_deletes=True,
-)
+    # Achievements relationship
+    achievements = relationship(
+        "Achievement",
+        back_populates="career_profile",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )

@@ -1,3 +1,4 @@
+
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -10,9 +11,11 @@ class ResumeSectionRepository:
 
     @staticmethod
     def get_resume(db: Session, resume_id: UUID):
-        return db.query(Resume).filter(
-            Resume.id == resume_id
-        ).first()
+        return (
+            db.query(Resume)
+            .filter(Resume.id == resume_id)
+            .first()
+        )
 
     @staticmethod
     def item_belongs_to_profile(
@@ -44,29 +47,32 @@ class ResumeSectionRepository:
         )
 
     @staticmethod
-    def replace_section(
+    def replace_sections(
         db: Session,
         resume_id: UUID,
-        section_type: str,
-        items: list[dict],
+        sections: list[dict],
     ):
         try:
-            db.query(ResumeSectionItem).filter(
-                ResumeSectionItem.resume_id == resume_id,
-                ResumeSectionItem.section_type == section_type,
-            ).delete(synchronize_session=False)
+            for section in sections:
+                section_type = section["section_type"]
 
-            records = [
-                ResumeSectionItem(
-                    resume_id=resume_id,
-                    section_type=section_type,
-                    item_id=item["item_id"],
-                    display_order=item["display_order"],
-                )
-                for item in items
-            ]
+                db.query(ResumeSectionItem).filter(
+                    ResumeSectionItem.resume_id == resume_id,
+                    ResumeSectionItem.section_type == section_type,
+                ).delete(synchronize_session=False)
 
-            db.add_all(records)
+                records = [
+                    ResumeSectionItem(
+                        resume_id=resume_id,
+                        section_type=section_type,
+                        item_id=item["item_id"],
+                        display_order=item["display_order"],
+                    )
+                    for item in section["items"]
+                ]
+
+                db.add_all(records)
+
             db.commit()
 
         except Exception:

@@ -1,3 +1,4 @@
+
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -37,19 +38,41 @@ class ResumeSectionService:
         if not resume:
             raise LookupError("Resume not found")
 
-        for section in sections:
-            model_class = SECTION_MODELS[section.section_type]
+        section_types = [
+            section.section_type for section in sections
+        ]
 
-            item_ids = [item.item_id for item in section.items]
+        if len(section_types) != len(set(section_types)):
+            raise ValueError(
+                "Duplicate section types are not allowed."
+            )
+
+        validated_sections = []
+
+        # Validate every requested section before making database changes.
+        for section in sections:
+
+            model_class = SECTION_MODELS.get(section.section_type)
+
+            if model_class is None:
+                raise ValueError(
+                    f"Unsupported section type: {section.section_type}"
+                )
+
+            item_ids = [
+                item.item_id for item in section.items
+            ]
 
             if len(item_ids) != len(set(item_ids)):
                 raise ValueError(
-                    f"Duplicate items found in section: {section.section_type}"
+                    f"Duplicate items found in section: "
+                    f"{section.section_type}"
                 )
 
             validated_items = []
 
             for item in section.items:
+
                 belongs_to_profile = (
                     ResumeSectionRepository.item_belongs_to_profile(
                         db=db,
@@ -62,8 +85,8 @@ class ResumeSectionService:
                 if not belongs_to_profile:
                     raise ValueError(
                         f"Invalid item {item.item_id} for section "
-                        f"{section.section_type}. The item does not belong "
-                        "to this resume's career profile."
+                        f"{section.section_type}. The item does not "
+                        "belong to this resume's career profile."
                     )
 
                 validated_items.append(
@@ -73,28 +96,48 @@ class ResumeSectionService:
                     }
                 )
 
-            ResumeSectionRepository.replace_section(
-                db=db,
-                resume_id=resume_id,
-                section_type=section.section_type,
-                items=validated_items,
+            validated_sections.append(
+                {
+                    "section_type": section.section_type,
+                    "items": validated_items,
+                }
             )
 
-        return ResumeSectionService.get_sections(db, resume_id)
+        # Replace all requested sections in one transaction.
+        ResumeSectionRepository.replace_sections(
+            db=db,
+            resume_id=resume_id,
+            sections=validated_sections,
+        )
+
+        return ResumeSectionService.get_sections(
+            db,
+            resume_id,
+        )
 
     @staticmethod
     def get_sections(db: Session, resume_id: UUID):
-        resume = ResumeSectionRepository.get_resume(db, resume_id)
+
+        resume = ResumeSectionRepository.get_resume(
+            db,
+            resume_id,
+        )
 
         if not resume:
             raise LookupError("Resume not found")
 
-        records = ResumeSectionRepository.get_sections(db, resume_id)
+        records = ResumeSectionRepository.get_sections(
+            db,
+            resume_id,
+        )
 
         grouped_sections = {}
 
         for record in records:
-            grouped_sections.setdefault(record.section_type, []).append(
+            grouped_sections.setdefault(
+                record.section_type,
+                [],
+            ).append(
                 {
                     "item_id": record.item_id,
                     "display_order": record.display_order,

@@ -7,6 +7,10 @@ from app.models.project import Project
 from app.models.certification import Certification
 from app.models.achievement import Achievement
 from app.models.resume_section_item import ResumeSectionItem
+from app.models.resume_optimization_session import ResumeOptimizationSession
+from app.models.resume_optimization_suggestion import ResumeOptimizationSuggestion
+from app.models.resume_content_override import ResumeContentOverride
+
 
 __all__ = [
     "CareerProfile",
@@ -18,4 +22,7 @@ __all__ = [
     "Certification",
     "Achievement",
     "ResumeSectionItem",
+    "ResumeOptimizationSession",
+    "ResumeOptimizationSuggestion",
+    "ResumeContentOverride",
 ]

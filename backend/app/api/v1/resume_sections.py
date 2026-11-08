@@ -37,7 +37,7 @@ def save_resume_sections(
         raise HTTPException(status_code=404, detail=str(exc))
 
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=422, detail=str(exc)) from exec
 
 
 @router.get(
