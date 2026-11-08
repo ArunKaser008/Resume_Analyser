@@ -34,11 +34,28 @@ class ResumeContentOverrideService:
             },
             "requires_item": True,
         },
+        "uploaded_resume": {
+            "target_field": "source_text",
+            "requires_item": False,
+        },
     }
 
     SECTION_TYPE_MAPPING = {
         "experience": "work_experience",
     }
+
+    @staticmethod
+    def _replace_uploaded_source_text(
+        current_text: str,
+        original_text: str | None,
+        suggested_text: str,
+    ) -> str:
+        if not original_text or original_text not in current_text:
+            raise ValueError(
+                "This suggestion no longer matches the current resume content. "
+                "Run optimization again before applying it."
+            )
+        return current_text.replace(original_text, suggested_text, 1)
 
     @staticmethod
     def _get_suggestion(db: Session, suggestion_id: UUID):
@@ -237,6 +254,34 @@ class ResumeContentOverrideService:
                 section_type,
             )
 
+            override_content = suggestion.suggested_text
+            if section_type == "uploaded_resume":
+                if not resume.source_text:
+                    raise ValueError(
+                        "This resume does not have an uploaded source document."
+                    )
+
+                current_override = (
+                    db.query(ResumeContentOverride)
+                    .filter(
+                        ResumeContentOverride.resume_id == resume.id,
+                        ResumeContentOverride.section_type == "uploaded_resume",
+                        ResumeContentOverride.source_item_id.is_(None),
+                        ResumeContentOverride.field_name == "source_text",
+                    )
+                    .first()
+                )
+                current_text = (
+                    current_override.content
+                    if current_override
+                    else resume.source_text
+                )
+                override_content = cls._replace_uploaded_source_text(
+                    current_text,
+                    suggestion.original_text,
+                    suggestion.suggested_text,
+                )
+
             existing_override = (
                 db.query(ResumeContentOverride)
                 .filter(
@@ -251,7 +296,7 @@ class ResumeContentOverrideService:
             )
 
             if existing_override:
-                existing_override.content = suggestion.suggested_text
+                existing_override.content = override_content
                 existing_override.suggestion_id = suggestion.id
                 override = existing_override
             else:
@@ -261,7 +306,7 @@ class ResumeContentOverrideService:
                     section_type=override_section_type,
                     source_item_id=target_item_id,
                     field_name=target_field,
-                    content=suggestion.suggested_text,
+                    content=override_content,
                 )
                 db.add(override)
 

@@ -1,68 +1,271 @@
 export type ProfileType = 'fresher' | 'experienced'
 export type ResumeTemplate = 'modern' | 'professional' | 'minimal'
+export type SectionType =
+  | 'education'
+  | 'work_experience'
+  | 'technical_skill'
+  | 'project'
+  | 'certification'
+  | 'achievement'
 
 export interface CareerProfile {
   id: string
   profile_type: ProfileType
   full_name: string
-  email?: string | null
-  phone?: string | null
-  city?: string | null
-  professional_title?: string | null
-  summary?: string | null
-  linkedin_url?: string | null
-  github_url?: string | null
-  portfolio_url?: string | null
-  created_at?: string
-  updated_at?: string
-}
-
-export interface CareerProfileCreate {
-  profile_type: ProfileType
-  full_name: string
-  email?: string
-  phone?: string
-  city?: string
-  professional_title?: string
-  summary?: string
-  linkedin_url?: string
-  github_url?: string
-  portfolio_url?: string
+  email: string | null
+  phone: string | null
+  city: string | null
+  professional_title: string | null
+  summary: string | null
+  linkedin_url: string | null
+  github_url: string | null
+  portfolio_url: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface Resume {
   id: string
   career_profile_id: string
   title: string
-  target_role?: string | null
+  target_role: string | null
   template_name: ResumeTemplate
   is_primary: boolean
-  created_at?: string
-  updated_at?: string
+  source_filename?: string | null
+  created_at: string
+  updated_at: string
 }
 
-export interface ResumeCreate {
-  career_profile_id: string
-  title: string
+export interface ResumeImportResponse {
+  career_profile: CareerProfile
+  resume: Resume
+  extracted_character_count: number
+}
+
+export type ResumeCreate = Pick<Resume, 'title'> & {
+  career_profile_id?: string
+  full_name?: string
+  profile_type?: ProfileType
   target_role?: string
-  template_name: ResumeTemplate
-  is_primary: boolean
+  template_name?: ResumeTemplate
+  is_primary?: boolean
+}
+export type ResumeUpdate = Partial<
+  Pick<Resume, 'title' | 'target_role' | 'template_name' | 'is_primary'>
+>
+
+export interface ResumeEntity {
+  id: string
+  career_profile_id: string
+  created_at: string
+  updated_at: string
+  [key: string]: string | number | boolean | null
 }
 
-export function normalizeList<T>(value: unknown): T[] {
-  if (Array.isArray(value)) return value as T[]
+export interface Education extends ResumeEntity {
+  institution_name: string
+  degree: string
+  field_of_study: string | null
+  start_date: string | null
+  end_date: string | null
+  is_current: boolean
+  grade: string | null
+  description: string | null
+}
 
-  if (value && typeof value === 'object') {
-    const result = value as {
-      items?: T[]
-      data?: T[]
-      results?: T[]
-    }
+export interface WorkExperience extends ResumeEntity {
+  company_name: string
+  job_title: string
+  employment_type: string | null
+  location: string | null
+  start_date: string
+  end_date: string | null
+  is_current: boolean
+  description: string | null
+}
 
-    if (Array.isArray(result.items)) return result.items
-    if (Array.isArray(result.data)) return result.data
-    if (Array.isArray(result.results)) return result.results
-  }
+export interface TechnicalSkill extends ResumeEntity {
+  skill_name: string
+  category: string | null
+  proficiency_level: string | null
+  years_of_experience: number | null
+}
 
-  return []
+export interface Project extends ResumeEntity {
+  project_name: string
+  role: string | null
+  technologies: string | null
+  description: string | null
+  responsibilities: string | null
+  achievements: string | null
+  project_url: string | null
+}
+
+export interface Certification extends ResumeEntity {
+  certification_name: string
+  issuing_organization: string
+  credential_id: string | null
+  credential_url: string | null
+  issue_date: string | null
+  expiry_date: string | null
+  does_not_expire: boolean
+}
+
+export interface Achievement extends ResumeEntity {
+  title: string
+  category: string | null
+  issuing_organization: string | null
+  achievement_date: string | null
+  description: string | null
+  credential_url: string | null
+}
+
+export type SectionRecord =
+  | Education
+  | WorkExperience
+  | TechnicalSkill
+  | Project
+  | Certification
+  | Achievement
+
+export interface ResumeSectionItem {
+  item_id: string
+  display_order: number
+}
+
+export interface ResumeSection {
+  section_type: SectionType
+  items: ResumeSectionItem[]
+}
+
+export interface ResumeSections {
+  resume_id: string
+  sections: ResumeSection[]
+}
+
+export interface ScoreCategory {
+  category: string
+  weight: number
+  score: number
+  weighted_score: number
+  details: string
+}
+
+export interface ResumeAnalysis {
+  resume_id: string
+  match_score: number
+  score_label: string
+  score_breakdown: ScoreCategory[]
+  matched_keywords: string[]
+  missing_keywords: string[]
+  matched_skills: string[]
+  missing_skills: string[]
+  strengths: string[]
+  weaknesses: string[]
+  recommendations: string[]
+  summary: string
+}
+
+export interface SkillMatch {
+  skill_name: string
+  category: string
+  importance: 'mandatory' | 'preferred'
+  status: 'matched' | 'partial' | 'missing'
+  match_percentage: number
+  evidence: string[]
+}
+
+export interface EvidenceMatch {
+  requirement: string
+  status: 'matched' | 'partial' | 'missing' | 'not_applicable'
+  match_percentage: number | null
+  evidence: string[]
+}
+
+export interface CandidateJDMatch {
+  resume_id: string
+  job_title: string | null
+  target_role: string | null
+  overall_match_score: number
+  match_label: string
+  mandatory_skill_match_percentage: number | null
+  preferred_skill_match_percentage: number | null
+  matched_skills: SkillMatch[]
+  partially_matched_skills: SkillMatch[]
+  missing_skills: SkillMatch[]
+  experience_alignment: EvidenceMatch
+  project_alignment: EvidenceMatch
+  qualification_alignment: EvidenceMatch
+  score_breakdown: ScoreCategory[]
+  strengths: string[]
+  improvement_opportunities: string[]
+  summary: string
+}
+
+export interface OptimizationSuggestion {
+  id: string
+  session_id: string
+  suggestion_type: string
+  source_item_id: string | null
+  target_field: string | null
+  original_text: string | null
+  suggested_text: string
+  explanation: string | null
+  status: string
+  created_at: string
+  updated_at: string | null
+}
+
+export interface OptimizationSession {
+  id: string
+  resume_id: string
+  target_role: string | null
+  job_description: string
+  status: string
+  created_at: string
+  updated_at: string
+  suggestions: OptimizationSuggestion[]
+}
+
+export interface ResumeOptimization {
+  resume_id: string
+  target_role: string | null
+  optimized_summary: string
+  experience_suggestions: {
+    original_text: string
+    suggested_text: string
+    explanation: string
+  }[]
+  project_suggestions: {
+    original_text: string
+    suggested_text: string
+    explanation: string
+  }[]
+  keywords_to_consider: string[]
+  skill_gap_recommendations: string[]
+  general_recommendations: string[]
+  factuality_notes: string[]
+}
+
+export interface ResumeContentOverride {
+  id: string
+  resume_id: string
+  suggestion_id: string
+  section_type: string
+  source_item_id: string | null
+  field_name: string
+  content: string
+  created_at: string
+  updated_at: string
+}
+
+export interface TailoringResult {
+  resume_id: string
+  job_title: string | null
+  target_role: string | null
+  match_analysis: CandidateJDMatch
+  optimization_session: Omit<OptimizationSession, 'suggestions'>
+  suggestions: OptimizationSuggestion[]
+  suggestion_count: number
+  message: string
 }

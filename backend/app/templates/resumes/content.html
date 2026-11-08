@@ -1,3 +1,4 @@
+{% if not resume.source_text %}
 <header class="resume-header">
     <h1>{{ profile.full_name }}</h1>
 
@@ -21,11 +22,19 @@
         {% endif %}
     </div>
 </header>
+{% endif %}
 
 {% if profile.summary %}
 <section>
     <h2>Professional Summary</h2>
     <p class="description">{{ profile.summary }}</p>
+</section>
+{% endif %}
+
+{% if resume.source_text %}
+<section>
+    <h2>Resume Content</h2>
+    <p class="description source-content">{{ resume.source_text }}</p>
 </section>
 {% endif %}
 

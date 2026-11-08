@@ -33,7 +33,10 @@ export async function apiRequest<T>(
       ...options,
       headers,
     })
-  } catch {
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw error
+    }
     throw new ApiError(
       'Unable to connect to the backend. Check that the FastAPI server is running.',
       0,
@@ -59,11 +62,58 @@ export async function apiRequest<T>(
       typeof detail === 'string'
         ? detail
         : Array.isArray(detail)
-          ? detail.map((item) => item.msg || JSON.stringify(item)).join(', ')
+          ? detail
+              .map((item) => {
+                if (typeof item !== 'object' || item === null) {
+                  return String(item)
+                }
+                const issue = item as { loc?: unknown[]; msg?: string }
+                const field = issue.loc?.slice(1).join('.')
+                return field ? `${field}: ${issue.msg || 'Invalid value'}` : issue.msg
+              })
+              .join(', ')
           : `Request failed with status ${response.status}`
 
     throw new ApiError(message, response.status, body)
   }
 
   return body as T
+}
+
+export async function apiBlob(path: string): Promise<Blob> {
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      headers: { Accept: 'application/pdf' },
+    })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw error
+    throw new ApiError(
+      'Unable to connect to the backend. Check that the FastAPI server is running.',
+      0,
+    )
+  }
+  if (!response.ok) {
+    const body = await response.text()
+    throw new ApiError(body || `Request failed with status ${response.status}`, response.status)
+  }
+  return response.blob()
+}
+
+export async function apiText(path: string): Promise<string> {
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      headers: { Accept: 'text/html' },
+    })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw error
+    throw new ApiError(
+      'Unable to connect to the backend. Check that the FastAPI server is running.',
+      0,
+    )
+  }
+  const text = await response.text()
+  if (!response.ok) throw new ApiError(text || `Request failed with status ${response.status}`, response.status)
+  return text
 }

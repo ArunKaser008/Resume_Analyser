@@ -6,6 +6,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     String,
+    Text,
     Uuid,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -46,6 +47,16 @@ class Resume(Base):
         Boolean,
         default=False,
         nullable=False,
+    )
+
+    source_filename: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    source_text: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(

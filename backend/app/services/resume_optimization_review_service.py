@@ -49,6 +49,13 @@ For project suggestions:
 - Use target_field "description", "responsibilities", or "achievements".
 - source_item_id MUST be copied from the supplied project records.
 
+For an uploaded resume document:
+- Return uploaded_resume_suggestions with one item per section to improve.
+- Copy each original_text exactly from UPLOADED RESUME SOURCE TEXT.
+- Keep each change within the same section and preserve factual claims.
+- Do not add, remove, or alter facts, dates, skills, employers, or numbers.
+- Use a concise section_name, suggested_text, and explanation.
+
 Return exactly this JSON structure:
 
 {
@@ -67,6 +74,14 @@ Return exactly this JSON structure:
       "target_field": "description",
       "suggested_text": "Improved project description",
       "explanation": "Why this improvement is relevant"
+    }
+  ],
+  "uploaded_resume_suggestions": [
+    {
+      "section_name": "Experience",
+      "original_text": "Exact existing text from one resume section",
+      "suggested_text": "Reworded text using only the supplied facts",
+      "explanation": "Why this section change is useful"
     }
   ],
   "keywords_to_consider": [],
@@ -251,6 +266,9 @@ TARGET ROLE:
 CANDIDATE SUMMARY:
 {profile.summary or "Not provided"}
 
+UPLOADED RESUME SOURCE TEXT:
+{resume_data.get("source_text") or "No uploaded source document"}
+
 SELECTED WORK EXPERIENCE RECORDS:
 {selected_records["work_experience"]}
 
@@ -314,6 +332,52 @@ Return the required JSON structure.
                         explanation="Improved professional summary aligned with the target role.",
                     )
                 )
+
+            uploaded_source_text = resume_data.get("source_text") or ""
+            uploaded_suggestions = ai_result.get(
+                "uploaded_resume_suggestions",
+                [],
+            )
+            if uploaded_source_text and isinstance(uploaded_suggestions, list):
+                for ai_item in uploaded_suggestions:
+                    if not isinstance(ai_item, dict):
+                        continue
+
+                    original_text = ai_item.get("original_text")
+                    suggested_text = ai_item.get("suggested_text")
+                    section_name = ai_item.get("section_name")
+                    explanation = ai_item.get("explanation")
+                    if (
+                        not isinstance(original_text, str)
+                        or not original_text.strip()
+                        or original_text not in uploaded_source_text
+                        or not isinstance(suggested_text, str)
+                        or not suggested_text.strip()
+                        or suggested_text.strip() == original_text.strip()
+                    ):
+                        continue
+
+                    section_label = (
+                        section_name.strip()
+                        if isinstance(section_name, str) and section_name.strip()
+                        else "Resume"
+                    )
+                    explanation_text = (
+                        explanation.strip()
+                        if isinstance(explanation, str) and explanation.strip()
+                        else "Improve clarity while preserving the original facts."
+                    )
+                    suggestions.append(
+                        ResumeOptimizationSuggestion(
+                            session_id=session.id,
+                            suggestion_type="uploaded_resume",
+                            source_item_id=None,
+                            target_field="source_text",
+                            original_text=original_text,
+                            suggested_text=suggested_text.strip(),
+                            explanation=f"{section_label}: {explanation_text}",
+                        )
+                    )
 
             # Experience suggestions
             ai_experience = ai_result.get("experience_suggestions", [])

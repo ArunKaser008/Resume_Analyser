@@ -12,13 +12,15 @@ from app.models.career_profile import CareerProfile
 
 
 def create_resume(db: Session, data: ResumeCreate) -> Resume:
-
-    career_profile = db.get(
-        CareerProfile,
-        data.career_profile_id,
-    )
-
-    if career_profile is None:
+    if data.career_profile_id is None:
+        profile = CareerProfile(
+            profile_type=data.profile_type,
+            full_name=(data.full_name or data.title).strip(),
+        )
+        db.add(profile)
+        db.flush()
+        data = data.model_copy(update={"career_profile_id": profile.id})
+    elif db.get(CareerProfile, data.career_profile_id) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Career profile not found",

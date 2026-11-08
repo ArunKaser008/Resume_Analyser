@@ -96,7 +96,7 @@ class ResumePreviewService:
                 if item_id in records_by_id
             ]
 
-        profile, resume_sections = (
+        profile, resume_sections, resume = (
             ResumePreviewService._apply_content_overrides(
                 db=db,
                 resume=resume,
@@ -160,8 +160,9 @@ class ResumePreviewService:
         )
 
         if not overrides:
-            return profile, resume_sections
+            return profile, resume_sections, resume
 
+        resume_data = ResumePreviewService._to_template_object(resume)
         profile_data = (
             ResumePreviewService._to_template_object(profile)
         )
@@ -175,6 +176,14 @@ class ResumePreviewService:
         }
 
         for override in overrides:
+
+            if (
+                override.section_type == "uploaded_resume"
+                and override.field_name == "source_text"
+                and override.source_item_id is None
+            ):
+                resume_data.source_text = override.content
+                continue
 
             # Summary override.
             if (
@@ -205,4 +214,4 @@ class ResumePreviewService:
 
                 break
 
-        return profile_data, updated_sections
+        return profile_data, updated_sections, resume_data

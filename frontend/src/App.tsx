@@ -1,43 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import './App.css'
-
 import { ApiError } from './api/client'
-import {
-  createCareerProfile,
-  getCareerProfiles,
-} from './api/careerProfiles'
-import { createResume, getResumes } from './api/resumes'
+import { getCareerProfiles } from './api/careerProfiles'
+import { getResumes } from './api/resumes'
+import type { CareerProfile, Resume } from './api/types'
+import AnalysisPage from './features/ats-analysis/AnalysisPage'
+import OptimizationPage from './features/ai-optimization/OptimizationPage'
+import ResumeBuilderPage from './features/resume-builder/ResumeBuilderPage'
+import ResumeLibraryPage from './features/resume-builder/ResumeLibraryPage'
+import ResumePreviewPage from './features/resume-builder/ResumePreviewPage'
 
-import type {
-  CareerProfile,
-  CareerProfileCreate,
-  ProfileType,
-  Resume,
-  ResumeTemplate,
-} from './api/types'
+type Page = 'ats' | 'builder' | 'builder-edit' | 'preview' | 'optimization' | 'tailoring'
+type FeaturePage = Extract<Page, 'ats' | 'builder' | 'tailoring'>
 
-type Page = 'overview' | 'resumes' | 'ats' | 'matching' | 'optimization'
-
-const navigation: { id: Page; label: string; icon: string }[] = [
-  { id: 'overview', label: 'Overview', icon: '◫' },
-  { id: 'resumes', label: 'My resumes', icon: '▤' },
-  { id: 'ats', label: 'ATS analysis', icon: '◎' },
-  { id: 'matching', label: 'Job matching', icon: '⌕' },
-  { id: 'optimization', label: 'AI optimization', icon: '✧' },
+const navigation: { id: FeaturePage; label: string; icon: string }[] = [
+  { id: 'ats', label: 'ATS resume analyser', icon: '◌' },
+  { id: 'builder', label: 'Resume builder', icon: '✎' },
+  { id: 'tailoring', label: 'JD resume update', icon: '↗' },
 ]
 
-const emptyProfile: CareerProfileCreate = {
-  profile_type: 'experienced',
-  full_name: '',
-  email: '',
-  phone: '',
-  city: '',
-  professional_title: '',
-  summary: '',
-  linkedin_url: '',
-  github_url: '',
-  portfolio_url: '',
-}
+const validPages = new Set<Page>(['ats', 'builder', 'builder-edit', 'preview', 'optimization', 'tailoring'])
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.message
@@ -46,678 +28,140 @@ function getErrorMessage(error: unknown): string {
 }
 
 function App() {
-  const [activePage, setActivePage] = useState<Page>('overview')
+  const initialHash = window.location.hash.slice(1) as Page
+  const [page, setPage] = useState<Page>(validPages.has(initialHash) ? initialHash : 'ats')
   const [profiles, setProfiles] = useState<CareerProfile[]>([])
   const [resumes, setResumes] = useState<Resume[]>([])
+  const [selectedResume, setSelectedResume] = useState<Resume | null>(null)
+  const [analysisResumeId, setAnalysisResumeId] = useState('')
   const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [search, setSearch] = useState('')
-  const [showCreate, setShowCreate] = useState(false)
-  const [step, setStep] = useState<1 | 2>(1)
-  const [profileForm, setProfileForm] =
-    useState<CareerProfileCreate>(emptyProfile)
-  const [resumeTitle, setResumeTitle] = useState('')
-  const [targetRole, setTargetRole] = useState('')
-  const [template, setTemplate] = useState<ResumeTemplate>('modern')
-  const [selectedProfile, setSelectedProfile] = useState('')
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  const loadDashboard = useCallback(async () => {
-    setLoading(true)
+  const refreshWorkspace = useCallback(async () => {
     setError('')
-
-    try {
-      const [profileData, resumeData] = await Promise.all([
-        getCareerProfiles(),
-        getResumes(),
-      ])
-
-      setProfiles(profileData)
-      setResumes(resumeData)
-    } catch (err) {
-      setError(getErrorMessage(err))
-    } finally {
-      setLoading(false)
-    }
+    const [profileData, resumeData] = await Promise.all([getCareerProfiles(), getResumes()])
+    setProfiles(profileData)
+    setResumes(resumeData)
+    setSelectedResume((current) => current ? resumeData.find((resume) => resume.id === current.id) || null : null)
   }, [])
 
   useEffect(() => {
-    void loadDashboard()
-  }, [loadDashboard])
-
-  const filteredResumes = useMemo(() => {
-    const query = search.trim().toLowerCase()
-
-    if (!query) return resumes
-
-    return resumes.filter((resume) =>
-      `${resume.title} ${resume.target_role || ''}`
-        .toLowerCase()
-        .includes(query),
-    )
-  }, [resumes, search])
-
-  const openCreate = () => {
-    setProfileForm(emptyProfile)
-    setResumeTitle('')
-    setTargetRole('')
-    setTemplate('modern')
-    setSelectedProfile(profiles[0]?.id || '')
-    setStep(profiles.length ? 2 : 1)
-    setShowCreate(true)
-    setError('')
-  }
-
-  const closeCreate = () => {
-    if (submitting) return
-    setShowCreate(false)
-  }
-
-  const updateProfile = (
-    field: keyof CareerProfileCreate,
-    value: string,
-  ) => {
-    setProfileForm((current) => ({ ...current, [field]: value }))
-  }
-
-  const submitProfile = async () => {
-    if (!profileForm.full_name.trim()) {
-      setError('Please enter your full name.')
-      return
-    }
-
-    setSubmitting(true)
-    setError('')
-
-    try {
-      const profile = await createCareerProfile({
-        ...profileForm,
-        full_name: profileForm.full_name.trim(),
+    let active = true
+    void Promise.all([getCareerProfiles(), getResumes()])
+      .then(([profileData, resumeData]) => {
+        if (!active) return
+        setProfiles(profileData)
+        setResumes(resumeData)
       })
+      .catch((cause: unknown) => { if (active) setError(getErrorMessage(cause)) })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [])
 
-      setProfiles((current) => [...current, profile])
-      setSelectedProfile(profile.id)
-      setStep(2)
-      setError('')
-    } catch (err) {
-      setError(getErrorMessage(err))
-    } finally {
-      setSubmitting(false)
+  useEffect(() => {
+    const syncPage = () => {
+      const requested = window.location.hash.slice(1) as Page | 'overview' | 'resumes' | 'profiles'
+      const aliases: Record<string, Page> = { overview: 'ats', resumes: 'builder', profiles: 'ats' }
+      const next = aliases[requested] || requested
+      if (validPages.has(next as Page)) setPage(next as Page)
+      else setPage('ats')
     }
-  }
+    window.addEventListener('hashchange', syncPage)
+    return () => window.removeEventListener('hashchange', syncPage)
+  }, [])
 
-  const submitResume = async () => {
-    if (!selectedProfile) {
-      setError('Please select a career profile.')
-      return
-    }
-
-    if (!resumeTitle.trim()) {
-      setError('Please enter a resume name.')
-      return
-    }
-
-    setSubmitting(true)
+  const navigate = (next: Page) => {
+    setPage(next)
+    setMobileMenuOpen(false)
+    if (window.location.hash !== `#${next}`) window.history.pushState(null, '', `#${next}`)
     setError('')
-
-    try {
-      const resume = await createResume({
-        career_profile_id: selectedProfile,
-        title: resumeTitle.trim(),
-        target_role: targetRole.trim() || undefined,
-        template_name: template,
-        is_primary: resumes.length === 0,
-      })
-
-      setResumes((current) => [resume, ...current])
-      setShowCreate(false)
-      setActivePage('resumes')
-    } catch (err) {
-      setError(getErrorMessage(err))
-    } finally {
-      setSubmitting(false)
-    }
   }
+  const navigateFeature = (next: FeaturePage) => {
+    if (next === 'ats') setAnalysisResumeId('')
+    navigate(next)
+  }
+  const title = useMemo(() => {
+    if (page === 'builder-edit' || page === 'preview') return 'Resume builder'
+    if (page === 'optimization') return 'AI suggestions'
+    return navigation.find((entry) => entry.id === page)?.label || 'JD resume update'
+  }, [page])
+  const openBuilder = (resume: Resume) => {
+    setSelectedResume(resume)
+    navigate('builder-edit')
+  }
+  const openPreview = (resume: Resume) => {
+    setSelectedResume(resume)
+    navigate('preview')
+  }
+  const handleResumeImported = async (resume: Resume) => {
+    await refreshWorkspace()
+    setSelectedResume(resume)
+  }
+  const openAnalyzer = (resumeId: string) => {
+    const resume = resumes.find((item) => item.id === resumeId)
+    if (resume) setSelectedResume(resume)
+    setAnalysisResumeId(resumeId)
+    navigate('ats')
+  }
+  const openOptimization = (resumeId: string) => {
+    const resume = resumes.find((item) => item.id === resumeId)
+    if (resume) setSelectedResume(resume)
+    navigate('optimization')
+  }
+  const selectedProfile = selectedResume
+    ? profiles.find((profile) => profile.id === selectedResume.career_profile_id) || null
+    : null
+  const activeFeature = page === 'builder-edit' || page === 'preview'
+    ? 'builder'
+    : page === 'optimization'
+      ? 'ats'
+      : page === 'tailoring'
+        ? 'tailoring'
+        : page
 
-  const pageTitle = navigation.find((item) => item.id === activePage)?.label
-
-  return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-mark">M</div>
-          <div>
-            <div className="brand-name">MentorMuni</div>
-            <div className="brand-caption">RESUME INTELLIGENCE</div>
-          </div>
-        </div>
-
-        <div className="workspace-label">MY WORKSPACE</div>
-
-        <nav className="navigation">
-          {navigation.map((item) => (
-            <button
-              key={item.id}
-              className={`nav-item ${activePage === item.id ? 'active' : ''}`}
-              onClick={() => setActivePage(item.id)}
-            >
-              <span className="nav-icon">{item.icon}</span>
-              <span>{item.label}</span>
-              {item.id === 'overview' && (
-                <span className="nav-active-dot" />
-              )}
-            </button>
-          ))}
-        </nav>
-
-        <div className="sidebar-bottom">
-          <div className="sidebar-promo">
-            <div className="promo-icon">✦</div>
-            <h3>Make every application count.</h3>
-            <p>Build a stronger resume with measurable improvements.</p>
-            <button onClick={() => setActivePage('optimization')}>
-              Explore AI tools <span>↗</span>
-            </button>
-          </div>
-
-          <div className="sidebar-help">
-            <span className="help-icon">?</span>
-            <span>Help & support</span>
-          </div>
-
-          <div className="user-profile">
-            <div className="avatar">V</div>
-            <div className="user-details">
-              <strong>My workspace</strong>
-              <span>Personal account</span>
-            </div>
-            <span className="user-menu">•••</span>
-          </div>
-        </div>
-      </aside>
-
-      <main className="main-area">
-        <header className="topbar">
-          <div className="breadcrumb">
-            <span>Workspace</span>
-            <span className="breadcrumb-separator">/</span>
-            <strong>{pageTitle}</strong>
-          </div>
-
-          <div className="topbar-right">
-            <span className="workspace-plan">PERSONAL WORKSPACE</span>
-            <button className="notification-button" aria-label="Notifications">
-              ♧
-            </button>
-            <div className="avatar top-avatar">V</div>
-          </div>
-        </header>
-
-        <div className="page-content">
-          {error && !showCreate && (
-            <div className="alert-error">
-              <span>{error}</span>
-              <button onClick={() => void loadDashboard()}>Retry</button>
-            </div>
-          )}
-
-          <section className="welcome-section">
-            <div>
-              <div className="eyebrow">
-                <span className="eyebrow-dot" />
-                YOUR CAREER WORKSPACE
-              </div>
-              <h1>
-                {activePage === 'overview'
-                  ? 'Build a resume that moves you forward.'
-                  : pageTitle}
-              </h1>
-              <p className="welcome-description">
-                {activePage === 'overview'
-                  ? 'Turn your experience into a compelling story. Measure, improve and prove your career readiness.'
-                  : 'Your career information and resume workspace, all in one place.'}
-              </p>
-            </div>
-
-            <button className="primary-button" onClick={openCreate}>
-              <span>＋</span> Create resume
-            </button>
-          </section>
-
-          <div className="journey-strip">
-            <div className="journey-step">
-              <span className="journey-number">01</span>
-              <div>
-                <strong>BUILD</strong>
-                <span>Create your career profile and resume</span>
-              </div>
-            </div>
-            <span className="journey-arrow">→</span>
-            <div className="journey-step">
-              <span className="journey-number">02</span>
-              <div>
-                <strong>ANALYZE</strong>
-                <span>Understand your ATS readiness</span>
-              </div>
-            </div>
-            <span className="journey-arrow">→</span>
-            <div className="journey-step">
-              <span className="journey-number">03</span>
-              <div>
-                <strong>IMPROVE</strong>
-                <span>Strengthen your resume with AI</span>
-              </div>
-            </div>
-          </div>
-
-          <section className="metrics-grid">
-            <MetricCard
-              label="CAREER PROFILES"
-              value={loading ? '—' : String(profiles.length)}
-              note="Your saved profiles"
-              icon="◉"
-              accent="cyan"
-            />
-            <MetricCard
-              label="RESUMES CREATED"
-              value={loading ? '—' : String(resumes.length)}
-              note="Your resume library"
-              icon="▤"
-              accent="green"
-            />
-            <MetricCard
-              label="ATS ANALYSES"
-              value="—"
-              note="Analysis history"
-              icon="◎"
-              accent="purple"
-            />
-            <MetricCard
-              label="JOB MATCHES"
-              value="—"
-              note="Matching activity"
-              icon="⌕"
-              accent="blue"
-            />
-          </section>
-
-          <div className="dashboard-grid">
-            <section className="panel resumes-panel">
-              <div className="panel-heading">
-                <div>
-                  <h2>{activePage === 'overview' ? 'Your resumes' : 'Resume library'}</h2>
-                  <p>Manage your career documents</p>
-                </div>
-                <button className="text-button" onClick={() => setActivePage('resumes')}>
-                  View all <span>↗</span>
-                </button>
-              </div>
-
-              <div className="search-box">
-                <span>⌕</span>
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search resumes..."
-                />
-              </div>
-
-              {loading ? (
-                <div className="empty-state">
-                  <div className="loading-spinner" />
-                  <p>Loading your workspace...</p>
-                </div>
-              ) : filteredResumes.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-icon">▤</div>
-                  <h3>{search ? 'No matching resumes' : 'Your resume library is empty'}</h3>
-                  <p>
-                    {search
-                      ? 'Try another search term.'
-                      : 'Create your first resume to get started.'}
-                  </p>
-                  {!search && (
-                    <button className="secondary-button" onClick={openCreate}>
-                      Create your first resume
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="resume-list">
-                  {filteredResumes.map((resume) => (
-                    <div className="resume-row" key={resume.id}>
-                      <div className="resume-file-icon">PDF</div>
-                      <div className="resume-info">
-                        <strong>{resume.title}</strong>
-                        <span>{resume.target_role || 'Target role not specified'}</span>
-                      </div>
-                      <span className="template-tag">
-                        {resume.template_name || 'modern'}
-                      </span>
-                      <span className="resume-status">
-                        <i /> Saved
-                      </span>
-                      <button
-                        className="row-menu"
-                        title="Resume actions"
-                        onClick={() => setActivePage('resumes')}
-                      >
-                        ↗
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-
-            <section className="panel readiness-panel">
-              <div className="panel-heading">
-                <div>
-                  <h2>Next steps</h2>
-                  <p>Move your resume forward</p>
-                </div>
-                <span className="sparkle">✦</span>
-              </div>
-
-              <div className="next-step-list">
-                <NextStep
-                  number="01"
-                  title="Complete your resume"
-                  description="Add education, experience and skills."
-                  onClick={() => setActivePage('resumes')}
-                />
-                <NextStep
-                  number="02"
-                  title="Run an ATS analysis"
-                  description="Discover keyword and content gaps."
-                  onClick={() => setActivePage('ats')}
-                />
-                <NextStep
-                  number="03"
-                  title="Match a job description"
-                  description="Measure your fit for a target role."
-                  onClick={() => setActivePage('matching')}
-                />
-                <NextStep
-                  number="04"
-                  title="Improve with AI"
-                  description="Review suggestions and strengthen your story."
-                  onClick={() => setActivePage('optimization')}
-                />
-              </div>
-            </section>
-          </div>
-
-          <section className="bottom-insight">
-            <div className="insight-symbol">✧</div>
-            <div>
-              <strong>Your next opportunity starts with a stronger story.</strong>
-              <p>Build → Analyze → Improve → Apply. Keep every improvement grounded in your real experience.</p>
-            </div>
-            <span className="insight-decoration">MENTORMUNI</span>
-          </section>
-        </div>
-      </main>
-
-      {showCreate && (
-        <div className="modal-backdrop" onMouseDown={closeCreate}>
-          <section
-            className="create-modal"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <div className="modal-header">
-              <div>
-                <div className="eyebrow">NEW RESUME</div>
-                <h2>{step === 1 ? 'Create your career profile' : 'Set up your resume'}</h2>
-                <p>
-                  {step === 1
-                    ? 'Start with the information that defines your professional identity.'
-                    : 'Choose a name and target role for this resume.'}
-                </p>
-              </div>
-              <button className="modal-close" onClick={closeCreate} aria-label="Close">
-                ×
-              </button>
-            </div>
-
-            <div className="step-indicator">
-              <span className="step-active">1. Career profile</span>
-              <span className={step === 2 ? 'step-active' : ''}>2. Resume details</span>
-            </div>
-
-            {error && <div className="alert-error modal-error">{error}</div>}
-
-            {step === 1 ? (
-              <div className="modal-form">
-                <label>
-                  Profile type
-                  <select
-                    value={profileForm.profile_type}
-                    onChange={(event) =>
-                      updateProfile('profile_type', event.target.value as ProfileType)
-                    }
-                  >
-                    <option value="experienced">Experienced professional</option>
-                    <option value="fresher">Fresher / Student</option>
-                  </select>
-                </label>
-
-                <label>
-                  Full name *
-                  <input
-                    value={profileForm.full_name}
-                    onChange={(event) => updateProfile('full_name', event.target.value)}
-                    placeholder="Your full name"
-                  />
-                </label>
-
-                <div className="form-two-columns">
-                  <label>
-                    Email
-                    <input
-                      type="email"
-                      value={profileForm.email || ''}
-                      onChange={(event) => updateProfile('email', event.target.value)}
-                      placeholder="you@example.com"
-                    />
-                  </label>
-                  <label>
-                    Phone
-                    <input
-                      value={profileForm.phone || ''}
-                      onChange={(event) => updateProfile('phone', event.target.value)}
-                      placeholder="+91..."
-                    />
-                  </label>
-                </div>
-
-                <div className="form-two-columns">
-                  <label>
-                    City
-                    <input
-                      value={profileForm.city || ''}
-                      onChange={(event) => updateProfile('city', event.target.value)}
-                      placeholder="Your city"
-                    />
-                  </label>
-                  <label>
-                    Professional title
-                    <input
-                      value={profileForm.professional_title || ''}
-                      onChange={(event) =>
-                        updateProfile('professional_title', event.target.value)
-                      }
-                      placeholder="e.g. Software Engineer"
-                    />
-                  </label>
-                </div>
-
-                <label>
-                  Professional summary
-                  <textarea
-                    value={profileForm.summary || ''}
-                    onChange={(event) => updateProfile('summary', event.target.value)}
-                    placeholder="A short introduction about your professional background..."
-                    rows={3}
-                  />
-                </label>
-
-                <div className="form-two-columns">
-                  <label>
-                    LinkedIn URL
-                    <input
-                      value={profileForm.linkedin_url || ''}
-                      onChange={(event) =>
-                        updateProfile('linkedin_url', event.target.value)
-                      }
-                      placeholder="https://linkedin.com/in/..."
-                    />
-                  </label>
-                  <label>
-                    GitHub URL
-                    <input
-                      value={profileForm.github_url || ''}
-                      onChange={(event) =>
-                        updateProfile('github_url', event.target.value)
-                      }
-                      placeholder="https://github.com/..."
-                    />
-                  </label>
-                </div>
-
-                <div className="modal-actions">
-                  <button className="secondary-button" onClick={closeCreate}>
-                    Cancel
-                  </button>
-                  <button
-                    className="primary-button"
-                    disabled={submitting || !profileForm.full_name.trim()}
-                    onClick={() => void submitProfile()}
-                  >
-                    {submitting ? 'Saving...' : 'Save & continue'}
-                    <span>→</span>
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="modal-form">
-                {profiles.length > 0 && (
-                  <label>
-                    Career profile
-                    <select
-                      value={selectedProfile}
-                      onChange={(event) => setSelectedProfile(event.target.value)}
-                    >
-                      {profiles.map((profile) => (
-                        <option key={profile.id} value={profile.id}>
-                          {profile.full_name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-
-                <label>
-                  Resume name *
-                  <input
-                    value={resumeTitle}
-                    onChange={(event) => setResumeTitle(event.target.value)}
-                    placeholder="e.g. Software Engineer Resume"
-                  />
-                </label>
-
-                <label>
-                  Target role
-                  <input
-                    value={targetRole}
-                    onChange={(event) => setTargetRole(event.target.value)}
-                    placeholder="e.g. Senior Software Engineer"
-                  />
-                </label>
-
-                <label>
-                  Resume template
-                  <select
-                    value={template}
-                    onChange={(event) =>
-                      setTemplate(event.target.value as ResumeTemplate)
-                    }
-                  >
-                    <option value="modern">Modern</option>
-                    <option value="professional">Professional</option>
-                    <option value="minimal">Minimal</option>
-                  </select>
-                </label>
-
-                <div className="modal-actions">
-                  <button
-                    className="secondary-button"
-                    onClick={() => setStep(1)}
-                  >
-                    Back
-                  </button>
-                  <button
-                    className="primary-button"
-                    disabled={submitting || !resumeTitle.trim() || !selectedProfile}
-                    onClick={() => void submitResume()}
-                  >
-                    {submitting ? 'Creating...' : 'Create resume'}
-                    <span>→</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </section>
-        </div>
-      )}
-    </div>
-  )
+  return <div className="app-shell">
+    {mobileMenuOpen && <button className="mobile-backdrop" aria-label="Close navigation" onClick={() => setMobileMenuOpen(false)} />}
+    <aside className={`sidebar ${mobileMenuOpen ? 'sidebar-open' : ''}`}>
+      <a className="brand" href="#ats" onClick={(event) => { event.preventDefault(); navigateFeature('ats') }}>
+        <span className="brand-mark">M</span><span><strong>MentorMuni</strong><small>RESUME WORKSPACE</small></span>
+      </a>
+      <div className="nav-group">
+        <div className="nav-label">FEATURES</div>
+        <nav>{navigation.map((entry) =>
+          <button key={entry.id} className={`nav-item ${activeFeature === entry.id ? 'active' : ''}`} onClick={() => navigateFeature(entry.id)} aria-current={activeFeature === entry.id ? 'page' : undefined}>
+            <span className="nav-icon">{entry.icon}</span><span>{entry.label}</span>{activeFeature === entry.id && <i />}
+          </button>)}</nav>
+      </div>
+      <div className="sidebar-bottom">
+        <div className="sidebar-tip"><span>✦</span><strong>Make every application count.</strong><p>Build, analyse, and tailor your resume.</p></div>
+        <div className="workspace-user"><span className="avatar">M</span><span><strong>My workspace</strong><small>Resume tools</small></span></div>
+      </div>
+    </aside>
+    <main className="main-area">
+      <header className="topbar"><button className="mobile-menu-button" onClick={() => setMobileMenuOpen(true)} aria-label="Open navigation">☰</button><div className="breadcrumb"><span>Features</span><span>/</span><strong>{title}</strong></div><div className="topbar-right"><span className="workspace-badge">RESUME WORKSPACE</span><span className="avatar top-avatar">M</span></div></header>
+      <div className="page-content">
+        {error && <div className="notice notice-error global-notice" role="alert"><span>{error}</span><button className="text-button" onClick={() => void refreshWorkspace().catch((cause: unknown) => setError(getErrorMessage(cause)))}>Retry</button></div>}
+        {loading ? <div className="panel empty-state loading-panel"><span className="spinner" /><p>Loading resumes…</p></div> : <>
+          {page === 'ats' && <AnalysisPage key={analysisResumeId || 'upload'} resumes={resumes} initialResumeId={analysisResumeId || undefined} onResumeImported={handleResumeImported} onOptimize={openOptimization} />}
+          {page === 'builder' && <ResumeLibraryPage resumes={resumes} onChanged={refreshWorkspace} onBuild={openBuilder} onPreview={openPreview} />}
+          {page === 'builder-edit' && (selectedResume && selectedProfile
+            ? <ResumeBuilderPage resume={selectedResume} profile={selectedProfile} onPreview={() => openPreview(selectedResume)} onResumeChanged={(resume) => { setSelectedResume(resume); navigate('builder') }} />
+            : <SelectionEmpty title="Select a resume to edit" description="Choose a resume in the builder to add and organize sections." onClick={() => navigate('builder')} button="Open resume builder" />)}
+          {page === 'preview' && (selectedResume
+            ? <ResumePreviewPage resume={selectedResume} onResumeChanged={(resume) => { setSelectedResume(resume); setResumes((current) => current.map((item) => item.id === resume.id ? resume : item)) }} onBack={() => navigate('builder-edit')} />
+            : <SelectionEmpty title="Select a resume to preview" description="Choose a resume in the builder to preview or download it." onClick={() => navigate('builder')} button="Open resume builder" />)}
+          {page === 'optimization' && <OptimizationPage key="optimization" mode="optimization" resumes={resumes} initialResumeId={selectedResume?.id} onResumeImported={handleResumeImported} onPreview={openPreview} onRecheck={openAnalyzer} />}
+          {page === 'tailoring' && <OptimizationPage key="tailoring" mode="tailoring" resumes={resumes} onResumeImported={handleResumeImported} onPreview={openPreview} onRecheck={openAnalyzer} />}
+        </>}
+        <footer className="page-footer"><span>MentorMuni Resume Workspace</span><span>Analyse · Build · Tailor</span></footer>
+      </div>
+    </main>
+  </div>
 }
 
-function MetricCard({
-  label,
-  value,
-  note,
-  icon,
-  accent,
-}: {
-  label: string
-  value: string
-  note: string
-  icon: string
-  accent: string
-}) {
-  return (
-    <div className="metric-card">
-      <div className={`metric-icon ${accent}`}>{icon}</div>
-      <div className="metric-label">{label}</div>
-      <div className="metric-value">{value}</div>
-      <div className="metric-note">{note}</div>
-    </div>
-  )
-}
-
-function NextStep({
-  number,
-  title,
-  description,
-  onClick,
-}: {
-  number: string
-  title: string
-  description: string
-  onClick: () => void
-}) {
-  return (
-    <button className="next-step" onClick={onClick}>
-      <span className="next-step-number">{number}</span>
-      <span className="next-step-copy">
-        <strong>{title}</strong>
-        <span>{description}</span>
-      </span>
-      <span className="next-step-arrow">↗</span>
-    </button>
-  )
+function SelectionEmpty({ title, description, button, onClick }: { title: string; description: string; button: string; onClick: () => void }) {
+  return <div className="panel empty-state feature-page"><h2>{title}</h2><p>{description}</p><button className="button button-primary" onClick={onClick}>{button}</button></div>
 }
 
 export default App

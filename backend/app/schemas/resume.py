@@ -1,11 +1,14 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class ResumeCreate(BaseModel):
-    career_profile_id: UUID
+    career_profile_id: UUID | None = None
+    full_name: str | None = Field(default=None, min_length=2, max_length=150)
+    profile_type: Literal["fresher", "experienced"] = "experienced"
     title: str = Field(min_length=2, max_length=150)
     target_role: str | None = Field(default=None, max_length=200)
     template_name: str = Field(default="modern", max_length=50)
@@ -28,5 +31,6 @@ class ResumeResponse(BaseModel):
     target_role: str | None
     template_name: str
     is_primary: bool
+    source_filename: str | None = None
     created_at: datetime
     updated_at: datetime

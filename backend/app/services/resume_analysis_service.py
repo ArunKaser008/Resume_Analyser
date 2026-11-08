@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.models.resume import Resume
+from app.models.resume_content_override import ResumeContentOverride
 from app.repositories.resume_preview_repository import (
     ResumePreviewRepository,
     SECTION_MODELS,
@@ -118,7 +119,7 @@ class ResumeAnalysisService:
         return resume
 
     @staticmethod
-    def _record_to_text(record) -> str:
+    def _record_to_text(record, overrides: dict | None = None) -> str:
         fields = (
             "company_name",
             "job_title",
@@ -142,7 +143,10 @@ class ResumeAnalysisService:
         values = []
 
         for field in fields:
-            value = getattr(record, field, None)
+            value = (overrides or {}).get(
+                field,
+                getattr(record, field, None),
+            )
 
             if value is not None:
                 if isinstance(value, list):
@@ -160,12 +164,43 @@ class ResumeAnalysisService:
         )
 
         profile = resume.career_profile
+        all_overrides = (
+            db.query(ResumeContentOverride)
+            .filter(ResumeContentOverride.resume_id == resume_id)
+            .order_by(
+                ResumeContentOverride.updated_at.asc(),
+                ResumeContentOverride.id.asc(),
+            )
+            .all()
+        )
+        override_values = {
+            (
+                item.section_type,
+                str(item.source_item_id or ""),
+                item.field_name,
+            ): item.content
+            for item in all_overrides
+        }
+        source_text_override = override_values.get(
+            ("uploaded_resume", "", "source_text")
+        )
+        source_text = (
+            source_text_override
+            if source_text_override is not None
+            else resume.source_text or ""
+        )
+        summary = override_values.get(
+            ("summary", "", "summary"),
+            profile.summary or "",
+        )
 
         parts = [
             profile.full_name or "",
             profile.professional_title or "",
-            profile.summary or "",
+            summary,
         ]
+        if source_text:
+            parts.append(source_text)
 
         section_text = {
             section_type: []
@@ -212,16 +247,37 @@ class ResumeAnalysisService:
                 record = records_by_id.get(str(item.item_id))
 
                 if record:
+                    record_overrides = {
+                        field: content
+                        for (override_section, item_id, field), content
+                        in override_values.items()
+                        if override_section == section_type
+                        and item_id == str(record.id)
+                    }
                     text = ResumeAnalysisService._record_to_text(
-                        record
+                        record,
+                        record_overrides,
                     )
 
                     section_text[section_type].append(text)
                     parts.append(text)
 
+        source_section_patterns = {
+            "education": r"(?im)^\s*(education|academic background|qualifications)\s*:?\s*$",
+            "work_experience": r"(?im)^\s*(work experience|professional experience|employment history|experience)\s*:?\s*$",
+            "technical_skill": r"(?im)^\s*(technical skills?|skills|technologies|technical expertise)\s*:?\s*$",
+            "project": r"(?im)^\s*(projects?|selected projects|personal projects)\s*:?\s*$",
+            "certification": r"(?im)^\s*(certifications?|licenses?)\s*:?\s*$",
+            "achievement": r"(?im)^\s*(achievements?|awards|accomplishments)\s*:?\s*$",
+        }
+        for section_type, pattern in source_section_patterns.items():
+            if not section_text[section_type] and re.search(pattern, source_text):
+                section_text[section_type].append(source_text)
+
         return {
             "resume_text": " ".join(parts),
             "sections": section_text,
+            "source_text": source_text,
         }
 
     @staticmethod
@@ -255,10 +311,145 @@ class ResumeAnalysisService:
         return "Low Alignment"
 
     @staticmethod
+    def _analyze_general(
+        *,
+        resume_id: UUID,
+        resume_text: str,
+        sections: dict,
+        profile,
+    ) -> dict:
+        normalized = resume_text.lower()
+        required_sections = (
+            ("education", "technical_skill", "project")
+            if profile.profile_type == "fresher"
+            else (
+                "education",
+                "work_experience",
+                "technical_skill",
+                "project",
+            )
+        )
+        present_sections = [
+            section for section in required_sections if sections.get(section)
+        ]
+        section_score = round(
+            len(present_sections) / len(required_sections) * 100,
+            2,
+        )
+
+        has_email = bool(profile.email) or bool(
+            re.search(r"\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b", normalized)
+        )
+        has_phone = bool(profile.phone) or bool(
+            re.search(r"(?:\+?\d[\d\s().-]{7,}\d)", resume_text)
+        )
+        contact_score = 100 if has_email and has_phone else 65 if has_email or has_phone else 30
+
+        word_count = len(resume_text.split())
+        content_score = round(min(word_count / 250, 1) * 100, 2)
+        lines = [line.strip() for line in resume_text.splitlines() if line.strip()]
+        bullet_lines = sum(
+            line.startswith(("-", "•", "*", "·")) for line in lines
+        )
+        readability_score = (
+            100
+            if len(lines) >= 8 and (bullet_lines > 0 or len(present_sections) >= 3)
+            else 65
+            if len(lines) >= 4
+            else 30
+        )
+
+        metrics = [
+            ("section_coverage", 35, section_score, "Recognized resume sections are present."),
+            ("contact_information", 25, contact_score, "Contact details help employers identify and reach you."),
+            ("content_depth", 25, content_score, f"{word_count} words detected; concise, complete content improves parsing."),
+            ("ATS_readability", 15, readability_score, "Based on text structure, headings, and bullet formatting."),
+        ]
+        breakdown = []
+        score = 0.0
+        for category, weight, value, details in metrics:
+            weighted = round(value * weight / 100, 2)
+            score += weighted
+            breakdown.append({
+                "category": category,
+                "weight": weight,
+                "score": value,
+                "weighted_score": weighted,
+                "details": details,
+            })
+        score = round(score, 2)
+
+        strengths = []
+        if has_email:
+            strengths.append("Your resume includes an email contact.")
+        if has_phone:
+            strengths.append("Your resume includes a phone contact.")
+        if len(present_sections) >= 3:
+            strengths.append(
+                f"{len(present_sections)} recognized resume sections were found."
+            )
+        if bullet_lines:
+            strengths.append("Your resume uses bullet-style content that is easy to scan.")
+
+        missing_sections = [
+            section.replace("_", " ")
+            for section in required_sections
+            if section not in present_sections
+        ]
+        weaknesses = []
+        recommendations = []
+        if missing_sections:
+            weaknesses.append(
+                "The following sections were not detected: "
+                + ", ".join(missing_sections)
+                + "."
+            )
+            recommendations.append(
+                "Add relevant details to the missing sections where applicable."
+            )
+        if not has_email or not has_phone:
+            weaknesses.append("Contact information appears incomplete.")
+            recommendations.append("Include a professional email address and phone number.")
+        if word_count < 100:
+            weaknesses.append("The resume contains limited searchable content.")
+            recommendations.append("Add factual details about your experience, skills, projects, and education.")
+        if readability_score < 100:
+            weaknesses.append("Resume structure may be difficult for an ATS to scan.")
+            recommendations.append("Use clear section headings and concise bullet points.")
+        if not recommendations:
+            recommendations.append("Review all details for accuracy and tailor this resume to each role.")
+        if not strengths:
+            strengths.append("The resume file was parsed successfully and is ready for improvement.")
+
+        return {
+            "resume_id": resume_id,
+            "match_score": score,
+            "score_label": ResumeAnalysisService._score_label(score),
+            "score_breakdown": breakdown,
+            "matched_keywords": [],
+            "missing_keywords": [],
+            "matched_skills": sorted(ResumeAnalysisService.extract_skills(resume_text)),
+            "missing_skills": [],
+            "strengths": strengths,
+            "weaknesses": weaknesses,
+            "recommendations": recommendations,
+            "summary": (
+                f"Your resume has a baseline ATS readiness score of {score}/100. "
+                "Add a job description for role-specific keyword alignment."
+            ),
+        }
+
+    @staticmethod
+    def get_resume_text(db: Session, resume_id: UUID) -> tuple[str, set[str]]:
+        resume_data = ResumeAnalysisService.get_resume_data(db, resume_id)
+        text = resume_data["resume_text"]
+        return text, ResumeAnalysisService.extract_skills(text)
+
+    @staticmethod
     def analyze(
         db: Session,
         resume_id: UUID,
-        job_description: str,
+        job_description: str | None = None,
     ):
         resume_data = ResumeAnalysisService.get_resume_data(
             db,
@@ -267,6 +458,18 @@ class ResumeAnalysisService:
 
         resume_text = resume_data["resume_text"]
         sections = resume_data["sections"]
+        profile = ResumeAnalysisService._get_resume(
+            db,
+            resume_id,
+        ).career_profile
+
+        if not job_description:
+            return ResumeAnalysisService._analyze_general(
+                resume_id=resume_id,
+                resume_text=resume_text,
+                sections=sections,
+                profile=profile,
+            )
 
         job_keywords = ResumeAnalysisService.extract_keywords(
             job_description
@@ -329,7 +532,12 @@ class ResumeAnalysisService:
             )
         )
 
-        if not job_keywords:
+        if profile.profile_type == "fresher":
+            experience_score = 100.0
+            experience_details = (
+                "Work experience is optional for fresher profiles."
+            )
+        elif not job_keywords:
             experience_score = 100.0
             experience_details = (
                 "No measurable job-description keywords were detected."
@@ -385,12 +593,16 @@ class ResumeAnalysisService:
             )
 
         # 5. Resume completeness: 10%
-        required_sections = [
-            "education",
-            "work_experience",
-            "technical_skill",
-            "project",
-        ]
+        required_sections = (
+            ["education", "technical_skill", "project"]
+            if profile.profile_type == "fresher"
+            else [
+                "education",
+                "work_experience",
+                "technical_skill",
+                "project",
+            ]
+        )
 
         present_sections = [
             section
@@ -480,7 +692,8 @@ class ResumeAnalysisService:
 
         if completeness_score == 100:
             strengths.append(
-                "All four core resume sections are populated."
+                f"All {len(required_sections)} core resume sections "
+                "are populated."
             )
 
         # Weaknesses
@@ -498,7 +711,7 @@ class ResumeAnalysisService:
                 "with the job description."
             )
 
-        if not experience_text.strip():
+        if not experience_text.strip() and profile.profile_type != "fresher":
             weaknesses.append(
                 "No work experience is selected in this resume."
             )
@@ -528,7 +741,7 @@ class ResumeAnalysisService:
                 "into your summary and experience descriptions."
             )
 
-        if experience_score < 50:
+        if experience_score < 50 and profile.profile_type != "fresher":
             recommendations.append(
                 "Improve the descriptions of relevant responsibilities "
                 "and accomplishments."

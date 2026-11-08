@@ -14,6 +14,7 @@ class ApplySuggestionRequest(BaseModel):
         "description",
         "responsibilities",
         "achievements",
+        "source_text",
     ]
 
     model_config = ConfigDict(extra="forbid")

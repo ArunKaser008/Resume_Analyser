@@ -4,10 +4,11 @@ from pydantic import BaseModel, Field
 
 
 class ResumeAnalysisRequest(BaseModel):
-    job_description: str = Field(
+    job_description: str | None = Field(
+        default=None,
         min_length=100,
         max_length=20000,
-        description="Full job description"
+        description="Optional job description for role-specific analysis",
     )
 
 

@@ -8,7 +8,13 @@ from app.schemas.resume import ResumeCreate, ResumeUpdate
 
 
 def create(db: Session, data: ResumeCreate) -> Resume:
-    resume = Resume(**data.model_dump())
+    resume = Resume(**data.model_dump(include={
+        "career_profile_id",
+        "title",
+        "target_role",
+        "template_name",
+        "is_primary",
+    }))
     db.add(resume)
     db.commit()
     db.refresh(resume)

@@ -13,6 +13,7 @@ from app.schemas.resume_template import (
 from app.services.resume_preview_service import ResumePreviewService
 from app.services.resume_template_service import ResumeTemplateService
 from app.services.resume_pdf_service import ResumePDFService
+from app.services.resume_docx_service import ResumeDOCXService
 
 
 logger = logging.getLogger(__name__)
@@ -116,3 +117,37 @@ def download_resume_pdf(
             status_code=500,
             detail="Unable to generate resume PDF",
         )
+
+
+@router.get("/{resume_id}/download/docx")
+def download_resume_docx(
+    resume_id: UUID,
+    db: Session = Depends(get_db),
+):
+    try:
+        content = ResumeDOCXService.generate_docx(
+            db=db,
+            resume_id=resume_id,
+        )
+        return Response(
+            content=content,
+            media_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "wordprocessingml.document"
+            ),
+            headers={
+                "Content-Disposition": (
+                    f'attachment; filename="resume-{resume_id}.docx"'
+                )
+            },
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Failed to generate resume DOCX")
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to generate resume DOCX",
+        ) from exc

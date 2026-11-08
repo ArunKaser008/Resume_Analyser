@@ -1,32 +1,34 @@
-# React + TypeScript + Vite
+# MentorMuni Resume Intelligence
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The frontend is a React/TypeScript application backed by the FastAPI service.
+Set `VITE_API_BASE_URL` in `frontend/.env` to the backend `/api/v1` URL.
 
-Currently, two official plugins are available:
+## Resume workflows
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- The sidebar contains only ATS resume analysis, resume building, and
+  job-description-based resume updates. No separate career-profile setup is
+  exposed.
+- **ATS resume analyser:** upload a PDF, DOCX, or TXT resume, choose Fresher
+  or Experienced, and view a baseline ATS score. An optional job description
+  enables role-specific keyword analysis.
+- **Resume builder:** create a resume directly, build it from sections,
+  preview it, and download it as PDF or DOCX. No separate career-profile
+  setup is needed.
+- **JD resume update:** upload a resume or choose a saved one, provide a job
+  description, then accept/reject and apply suggestions individually. Applied
+  changes remain resume-specific.
 
-## React Compiler
+Uploads are limited to 10 MB. Text is extracted from selectable PDF text,
+DOCX paragraphs/tables, or UTF-8 TXT files; scanned image-only PDFs are not
+OCR-processed.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Before starting the backend, install the repository requirements and apply
+the Alembic migrations from `backend/`:
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```powershell
+python -m pip install -r ..\requirements.txt
+python -m alembic upgrade head
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+PDF export uses the existing Playwright Chromium PDF renderer. DOCX export
+uses the same backend-rendered resume preview.
