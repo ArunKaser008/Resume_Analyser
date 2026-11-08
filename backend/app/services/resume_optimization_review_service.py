@@ -245,6 +245,7 @@ class ResumeOptimizationReviewService:
         resume_data = ResumeAnalysisService.get_resume_data(
             db,
             resume_id,
+            include_drafts=True,
         )
 
         if not resume_data["resume_text"].strip():
@@ -279,9 +280,14 @@ COMPLETE SELECTED RESUME TEXT:
 {resume_data["resume_text"]}
 
 JOB DESCRIPTION:
-{request.job_description}
+{request.job_description or "Not provided; focus on the resume weakness below."}
+
+ATS WEAKNESS TO ADDRESS:
+{request.focus_weakness or "No specific weakness selected."}
 
 Generate suggestions using only the supplied records.
+When an ATS weakness is specified, focus all suggestions on addressing that
+weakness while preserving factual accuracy. Do not generate unrelated changes.
 
 For every experience and project suggestion:
 - Copy the exact source_item_id from the relevant record.
@@ -303,7 +309,10 @@ Return the required JSON structure.
 
             session = ResumeOptimizationSession(
                 resume_id=resume_id,
-                job_description=request.job_description,
+                job_description=(
+                    request.job_description
+                    or f"ATS weakness: {request.focus_weakness}"
+                ),
                 target_role=resume.target_role,
                 status="pending",
                 result_payload=ai_result,

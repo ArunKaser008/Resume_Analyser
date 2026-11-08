@@ -296,6 +296,10 @@ class ResumeContentOverrideService:
             )
 
             if existing_override:
+                if not existing_override.is_draft:
+                    existing_override.previous_content = existing_override.content
+                    existing_override.draft_created = False
+                existing_override.is_draft = True
                 existing_override.content = override_content
                 existing_override.suggestion_id = suggestion.id
                 override = existing_override
@@ -307,6 +311,8 @@ class ResumeContentOverrideService:
                     source_item_id=target_item_id,
                     field_name=target_field,
                     content=override_content,
+                    is_draft=True,
+                    draft_created=True,
                 )
                 db.add(override)
 
@@ -392,7 +398,13 @@ class ResumeContentOverrideService:
                     "Resume content override not found."
                 )
 
-            db.delete(override)
+            if override.is_draft and not override.draft_created:
+                override.content = override.previous_content or ""
+                override.is_draft = False
+                override.previous_content = None
+                override.draft_created = False
+            else:
+                db.delete(override)
             db.commit()
 
             logger.info(

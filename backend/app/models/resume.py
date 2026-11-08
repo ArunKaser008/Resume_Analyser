@@ -30,6 +30,13 @@ class Resume(Base):
         index=True,
     )
 
+    parent_resume_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("resumes.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+
     title: Mapped[str] = mapped_column(String(150), nullable=False)
 
     target_role: Mapped[str | None] = mapped_column(

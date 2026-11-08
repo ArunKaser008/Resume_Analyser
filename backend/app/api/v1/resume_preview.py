@@ -1,7 +1,7 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse, Response
 from sqlalchemy.orm import Session
 
@@ -60,12 +60,14 @@ def update_resume_template(
 )
 def preview_resume(
     resume_id: UUID,
+    include_drafts: bool = Query(default=False),
     db: Session = Depends(get_db),
 ):
     try:
         html_content = ResumePreviewService.generate_preview(
             db=db,
             resume_id=resume_id,
+            include_drafts=include_drafts,
         )
 
         return HTMLResponse(content=html_content)

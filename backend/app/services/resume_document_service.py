@@ -70,9 +70,10 @@ class ResumeDocumentService:
         title: str | None,
         target_role: str | None,
     ) -> tuple[CareerProfile, Resume, int]:
-        if profile_type not in {"fresher", "experienced"}:
-            raise ValueError("Profile type must be fresher or experienced.")
-
+        if profile_type not in {"student", "fresher", "experienced"}:
+            raise ValueError("Candidate type must be student, fresher, or experienced.")
+        if profile_type == "student":
+            target_role = None
         source_text = ResumeDocumentService.extract_text(filename, content)
         cleaned_name = (full_name or "").strip() or ResumeDocumentService._infer_name(
             source_text,

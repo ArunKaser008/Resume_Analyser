@@ -2,6 +2,7 @@
 import uuid
 
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     ForeignKey,
@@ -39,7 +40,7 @@ class ResumeContentOverride(Base):
             "resume_optimization_suggestions.id",
             ondelete="CASCADE",
         ),
-        nullable=False,
+        nullable=True,
         unique=True,
     )
 
@@ -61,6 +62,25 @@ class ResumeContentOverride(Base):
     content = Column(
         Text,
         nullable=False,
+    )
+
+    is_draft = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false"),
+    )
+
+    previous_content = Column(
+        Text,
+        nullable=True,
+    )
+
+    draft_created = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=text("false"),
     )
 
     created_at = Column(

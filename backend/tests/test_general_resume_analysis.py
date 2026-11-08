@@ -39,6 +39,29 @@ class GeneralResumeAnalysisTests(unittest.TestCase):
         self.assertTrue(result["weaknesses"])
         self.assertTrue(result["recommendations"])
 
+    def test_student_baseline_does_not_require_work_experience(self):
+        profile = SimpleNamespace(
+            profile_type="student",
+            full_name="Avery Example",
+            email=None,
+            phone=None,
+        )
+        result = ResumeAnalysisService._analyze_general(
+            resume_id="resume-id",
+            resume_text="Avery Example\nEducation\nProject\nTechnical skills",
+            sections={
+                "education": ["Bachelor of Science"],
+                "work_experience": [],
+                "technical_skill": ["Python"],
+                "project": ["Student project"],
+                "certification": [],
+                "achievement": [],
+            },
+            profile=profile,
+        )
+
+        self.assertFalse(any("work experience" in item.lower() for item in result["weaknesses"]))
+
 
 if __name__ == "__main__":
     unittest.main()

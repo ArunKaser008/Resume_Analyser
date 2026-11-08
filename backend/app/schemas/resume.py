@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class ResumeCreate(BaseModel):
     career_profile_id: UUID | None = None
     full_name: str | None = Field(default=None, min_length=2, max_length=150)
-    profile_type: Literal["fresher", "experienced"] = "experienced"
+    profile_type: Literal["student", "fresher", "experienced"] = "experienced"
     title: str = Field(min_length=2, max_length=150)
     target_role: str | None = Field(default=None, max_length=200)
     template_name: str = Field(default="modern", max_length=50)
@@ -27,6 +27,7 @@ class ResumeResponse(BaseModel):
 
     id: UUID
     career_profile_id: UUID
+    parent_resume_id: UUID | None = None
     title: str
     target_role: str | None
     template_name: str
@@ -34,3 +35,13 @@ class ResumeResponse(BaseModel):
     source_filename: str | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class ResumeFinalizeChangesRequest(BaseModel):
+    action: Literal["update_existing", "save_copy"]
+
+
+class ResumeFinalizeChangesResponse(BaseModel):
+    resume: ResumeResponse
+    saved_copies: int
+    maximum_copies: int = 2

@@ -18,13 +18,14 @@ export function optimizeResume(
 
 export function createOptimizationSession(
   resumeId: string,
-  job_description: string,
+  job_description: string | undefined,
+  focus_weakness?: string,
 ): Promise<OptimizationSession> {
   return apiRequest<OptimizationSession>(
     `/resumes/${resumeId}/optimization-sessions`,
     {
       method: 'POST',
-      body: JSON.stringify({ job_description }),
+      body: JSON.stringify({ job_description, focus_weakness }),
     },
   )
 }

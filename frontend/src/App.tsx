@@ -104,11 +104,6 @@ function App() {
     setAnalysisResumeId(resumeId)
     navigate('ats')
   }
-  const openOptimization = (resumeId: string) => {
-    const resume = resumes.find((item) => item.id === resumeId)
-    if (resume) setSelectedResume(resume)
-    navigate('optimization')
-  }
   const selectedProfile = selectedResume
     ? profiles.find((profile) => profile.id === selectedResume.career_profile_id) || null
     : null
@@ -143,7 +138,7 @@ function App() {
       <div className="page-content">
         {error && <div className="notice notice-error global-notice" role="alert"><span>{error}</span><button className="text-button" onClick={() => void refreshWorkspace().catch((cause: unknown) => setError(getErrorMessage(cause)))}>Retry</button></div>}
         {loading ? <div className="panel empty-state loading-panel"><span className="spinner" /><p>Loading resumes…</p></div> : <>
-          {page === 'ats' && <AnalysisPage key={analysisResumeId || 'upload'} resumes={resumes} initialResumeId={analysisResumeId || undefined} onResumeImported={handleResumeImported} onOptimize={openOptimization} />}
+          {page === 'ats' && <AnalysisPage key={analysisResumeId || 'upload'} resumes={resumes} initialResumeId={analysisResumeId || undefined} onResumeImported={handleResumeImported} onResumeFinalized={handleResumeImported} />}
           {page === 'builder' && <ResumeLibraryPage resumes={resumes} onChanged={refreshWorkspace} onBuild={openBuilder} onPreview={openPreview} />}
           {page === 'builder-edit' && (selectedResume && selectedProfile
             ? <ResumeBuilderPage resume={selectedResume} profile={selectedProfile} onPreview={() => openPreview(selectedResume)} onResumeChanged={(resume) => { setSelectedResume(resume); navigate('builder') }} />

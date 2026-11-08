@@ -31,7 +31,12 @@ AVAILABLE_TEMPLATES = {
 class ResumePreviewService:
 
     @staticmethod
-    def generate_preview(db: Session, resume_id: UUID) -> str:
+    def generate_preview(
+        db: Session,
+        resume_id: UUID,
+        *,
+        include_drafts: bool = False,
+    ) -> str:
         resume = ResumePreviewRepository.get_resume(db, resume_id)
 
         if not resume:
@@ -102,6 +107,7 @@ class ResumePreviewService:
                 resume=resume,
                 profile=profile,
                 resume_sections=resume_sections,
+                include_drafts=include_drafts,
             )
         )
 
@@ -139,6 +145,7 @@ class ResumePreviewService:
         resume,
         profile,
         resume_sections: dict,
+        include_drafts: bool = False,
     ):
         """
         Apply resume-specific overrides to independent template objects.
@@ -150,7 +157,7 @@ class ResumePreviewService:
         overrides = (
             db.query(ResumeContentOverride)
             .filter(
-                ResumeContentOverride.resume_id == resume.id
+                ResumeContentOverride.resume_id == resume.id,
             )
             .order_by(
                 ResumeContentOverride.created_at.asc(),
@@ -158,6 +165,21 @@ class ResumePreviewService:
             )
             .all()
         )
+        effective_overrides = []
+        for override in overrides:
+            if override.is_draft and not include_drafts:
+                if override.draft_created:
+                    continue
+                if override.previous_content is None:
+                    continue
+                override = SimpleNamespace(
+                    section_type=override.section_type,
+                    source_item_id=override.source_item_id,
+                    field_name=override.field_name,
+                    content=override.previous_content,
+                )
+            effective_overrides.append(override)
+        overrides = effective_overrides
 
         if not overrides:
             return profile, resume_sections, resume

@@ -23,11 +23,12 @@ class ApplySuggestionRequest(BaseModel):
 class ResumeContentOverrideResponse(BaseModel):
     id: UUID
     resume_id: UUID
-    suggestion_id: UUID
+    suggestion_id: UUID | None
     section_type: str
     source_item_id: UUID | None
     field_name: str
     content: str
+    is_draft: bool = False
     created_at: datetime
     updated_at: datetime
 

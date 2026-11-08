@@ -46,6 +46,15 @@ class ResumeAPIContractTests(unittest.TestCase):
 
         self.assertNotIn("full_name", request_schema.get("required", []))
 
+    def test_weakness_optimization_and_change_finalization_routes_exist(self):
+        paths = app.openapi()["paths"]
+        session_schema = app.openapi()["components"]["schemas"]["OptimizationSessionCreate"]
+
+        self.assertIn("post", paths["/api/v1/resumes/{resume_id}/optimization-sessions"])
+        self.assertNotIn("job_description", session_schema.get("required", []))
+        self.assertIn("focus_weakness", session_schema["properties"])
+        self.assertIn("post", paths["/api/v1/resumes/{resume_id}/finalize-changes"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,4 +1,4 @@
-export type ProfileType = 'fresher' | 'experienced'
+export type ProfileType = 'student' | 'fresher' | 'experienced'
 export type ResumeTemplate = 'modern' | 'professional' | 'minimal'
 export type SectionType =
   | 'education'
@@ -27,6 +27,7 @@ export interface CareerProfile {
 export interface Resume {
   id: string
   career_profile_id: string
+  parent_resume_id?: string | null
   title: string
   target_role: string | null
   template_name: ResumeTemplate
@@ -250,11 +251,12 @@ export interface ResumeOptimization {
 export interface ResumeContentOverride {
   id: string
   resume_id: string
-  suggestion_id: string
+  suggestion_id: string | null
   section_type: string
   source_item_id: string | null
   field_name: string
   content: string
+  is_draft: boolean
   created_at: string
   updated_at: string
 }

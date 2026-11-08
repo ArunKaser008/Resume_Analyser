@@ -3,14 +3,22 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class OptimizationSessionCreate(BaseModel):
-    job_description: str = Field(
+    job_description: str | None = Field(
+        default=None,
         min_length=100,
         max_length=20000,
     )
+    focus_weakness: str | None = Field(default=None, min_length=3, max_length=1000)
+
+    @model_validator(mode="after")
+    def require_job_description_or_weakness(self):
+        if not self.job_description and not self.focus_weakness:
+            raise ValueError("Provide a job description or a resume weakness to improve.")
+        return self
 
 
 class OptimizationDecisionRequest(BaseModel):

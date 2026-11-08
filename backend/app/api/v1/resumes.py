@@ -16,13 +16,20 @@ from fastapi import (
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.schemas.resume import ResumeCreate, ResumeUpdate, ResumeResponse
+from app.schemas.resume import (
+    ResumeCreate,
+    ResumeFinalizeChangesRequest,
+    ResumeFinalizeChangesResponse,
+    ResumeUpdate,
+    ResumeResponse,
+)
 from app.schemas.resume_import import ResumeImportResponse
 from app.services import resume_service as service
 from app.services.resume_document_service import (
     MAX_UPLOAD_BYTES,
     ResumeDocumentService,
 )
+from app.services.resume_finalization_service import ResumeFinalizationService
 
 
 router = APIRouter(prefix="/resumes", tags=["Resumes"])
@@ -35,7 +42,7 @@ router = APIRouter(prefix="/resumes", tags=["Resumes"])
 )
 async def import_resume(
     file: UploadFile = File(...),
-    profile_type: Literal["fresher", "experienced"] = Form(...),
+    profile_type: Literal["student", "fresher", "experienced"] = Form(...),
     full_name: str | None = Form(default=None, max_length=150),
     title: str | None = Form(default=None, max_length=150),
     target_role: str | None = Form(default=None, max_length=200),
@@ -95,6 +102,38 @@ def get_resume(
     db: Session = Depends(get_db),
 ):
     return service.get_resume(db, resume_id)
+
+
+@router.post(
+    "/{resume_id}/finalize-changes",
+    response_model=ResumeFinalizeChangesResponse,
+)
+def finalize_resume_changes(
+    resume_id: UUID,
+    request: ResumeFinalizeChangesRequest,
+    db: Session = Depends(get_db),
+):
+    try:
+        resume, saved_copies = ResumeFinalizationService.finalize_changes(
+            db=db,
+            resume_id=resume_id,
+            action=request.action,
+        )
+        return {
+            "resume": resume,
+            "saved_copies": saved_copies,
+            "maximum_copies": 2,
+        }
+    except LookupError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
 
 
 @router.put("/{resume_id}", response_model=ResumeResponse)

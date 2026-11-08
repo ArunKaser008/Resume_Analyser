@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl
 
 
-ProfileType = Literal["fresher", "experienced"]
+ProfileType = Literal["student", "fresher", "experienced"]
 
 
 class CareerProfileCreate(BaseModel):

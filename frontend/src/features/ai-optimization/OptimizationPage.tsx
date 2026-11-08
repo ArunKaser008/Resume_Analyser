@@ -11,8 +11,8 @@ import {
   setSuggestionDecision,
   tailorResume,
 } from '../../api/optimization'
-import type { OptimizationSession, Resume, ResumeContentOverride, ResumeOptimization, TailoringResult } from '../../api/types'
-import { importResume } from '../../api/resumes'
+import type { OptimizationSession, ProfileType, Resume, ResumeContentOverride, ResumeOptimization, TailoringResult } from '../../api/types'
+import { finalizeResumeChanges, importResume } from '../../api/resumes'
 
 const applyFields = new Set(['summary', 'description', 'responsibilities', 'achievements', 'source_text'])
 
@@ -27,7 +27,7 @@ export default function OptimizationPage({ mode, resumes, initialResumeId, onRes
   const [resumeId, setResumeId] = useState(initialResumeId || resumes[0]?.id || '')
   const [source, setSource] = useState<'upload' | 'saved'>(initialResumeId ? 'saved' : 'upload')
   const [file, setFile] = useState<File | null>(null)
-  const [profileType, setProfileType] = useState<'fresher' | 'experienced'>('experienced')
+  const [profileType, setProfileType] = useState<ProfileType>('experienced')
   const [targetRole, setTargetRole] = useState('')
   const [jobDescription, setJobDescription] = useState('')
   const [sessions, setSessions] = useState<OptimizationSession[]>([])
@@ -38,6 +38,9 @@ export default function OptimizationPage({ mode, resumes, initialResumeId, onRes
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const activeResume = resumes.find((resume) => resume.id === resumeId)
+  const copyRootId = activeResume?.parent_resume_id || activeResume?.id
+  const savedCopies = resumes.filter((resume) => resume.parent_resume_id === copyRootId).length
 
   const loadResumeData = async (id: string) => {
     if (!id) { setSessions([]); setSelected(null); setOverrides([]); return }
@@ -169,12 +172,30 @@ export default function OptimizationPage({ mode, resumes, initialResumeId, onRes
       setError(cause instanceof Error ? cause.message : 'Unable to remove the override.')
     } finally { setBusy(false) }
   }
+  const finalizeChanges = async (action: 'update_existing' | 'save_copy') => {
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      const result = await finalizeResumeChanges(resumeId, action)
+      setResumeId(result.resume.id)
+      await onResumeImported?.(result.resume)
+      await loadResumeData(result.resume.id)
+      setNotice(action === 'save_copy'
+        ? `Saved as ${result.resume.title}. The original resume was left unchanged.`
+        : 'Changes saved to the existing resume.')
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : 'Unable to save these changes.')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   return <div className="feature-page">
     <div className="page-heading"><div><div className="eyebrow">AI-ASSISTED IMPROVEMENT</div><h1>{mode === 'optimization' ? 'Optimize your resume' : 'Tailor your resume'}</h1><p>{mode === 'optimization' ? 'Get job-specific feedback, review every suggestion, and decide what to apply.' : 'Generate a job-specific fit analysis and review suggestions without overwriting your original resume.'}</p></div></div>
     <section className="panel analysis-form">
       {mode === 'tailoring' && <div className="source-switch" role="group" aria-label="Resume source"><button type="button" className={`button ${source === 'upload' ? 'button-primary' : 'button-secondary'}`} onClick={() => setSource('upload')}>Upload resume</button><button type="button" className={`button ${source === 'saved' ? 'button-primary' : 'button-secondary'}`} onClick={() => setSource('saved')}>Choose saved resume</button></div>}
-      {mode === 'tailoring' && source === 'upload' && <div className="form-grid"><label>Existing resume *<input type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" required onChange={(event) => setFile(event.target.files?.[0] || null)} /><small className="muted">PDF, DOCX, or TXT · 10 MB maximum. Scanned image-only PDFs are not supported.</small></label><label>Candidate type<select value={profileType} onChange={(event) => setProfileType(event.target.value as 'fresher' | 'experienced')}><option value="fresher">Fresher</option><option value="experienced">Experienced</option></select></label><label>Target role <span className="muted">(optional)</span><input maxLength={200} value={targetRole} onChange={(event) => setTargetRole(event.target.value)} /></label></div>}
+      {mode === 'tailoring' && source === 'upload' && <div className="form-grid"><label>Existing resume *<input type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" required onChange={(event) => setFile(event.target.files?.[0] || null)} /><small className="muted">PDF, DOCX, or TXT · 10 MB maximum. Scanned image-only PDFs are not supported.</small></label><label>Candidate type<select value={profileType} onChange={(event) => { const type = event.target.value as ProfileType; setProfileType(type); if (type === 'student') setTargetRole('') }}><option value="student">Student</option><option value="fresher">Fresher</option><option value="experienced">Experienced</option></select></label>{profileType !== 'student' && <label>Target role <span className="muted">(optional)</span><input maxLength={200} value={targetRole} onChange={(event) => setTargetRole(event.target.value)} /></label>}</div>}
       {(mode === 'optimization' || source === 'saved') && <label>Resume<select value={resumeId} onChange={(event) => { setResumeId(event.target.value); setSelected(null); setError('') }}><option value="">Select a resume</option>{resumes.map((resume) => <option key={resume.id} value={resume.id}>{resume.title}</option>)}</select></label>}
       <label>Target job description <span className="muted">(100–20,000 characters)</span><textarea rows={7} minLength={100} maxLength={20000} value={jobDescription} onChange={(event) => setJobDescription(event.target.value)} placeholder="Paste the job description to receive tailored suggestions…" /></label>
       <div className="form-footer"><span className="character-count">{jobDescription.length.toLocaleString()} / 20,000</span><div className="button-row">{mode === 'optimization' ? <><button className="button button-secondary" disabled={busy || jobDescription.trim().length < 100} onClick={() => void run('optimize')}>Generate recommendations</button><button className="button button-primary" disabled={busy || jobDescription.trim().length < 100} onClick={() => void run('session')}>{busy ? 'Working…' : 'Create review session'}</button></> : <button className="button button-primary" disabled={busy || jobDescription.trim().length < 100} onClick={() => void run('tailor')}>{busy ? 'Tailoring…' : 'Tailor & analyze'}</button>}</div></div>
@@ -182,6 +203,7 @@ export default function OptimizationPage({ mode, resumes, initialResumeId, onRes
     {error && <div className="notice notice-error" role="alert">{error}</div>}{notice && <div className="notice notice-success" role="status">{notice}</div>}
     {optimization && <OptimizationResult result={optimization} />}
     {tailoring && <section className="panel"><div className="panel-title"><div><h2>Tailoring analysis</h2><p>{tailoring.message}</p></div><strong className="large-score">{Math.round(tailoring.match_analysis.overall_match_score)}%</strong></div><p>{tailoring.match_analysis.summary}</p><p>{tailoring.suggestion_count} reviewable suggestions are available in the session below.</p><div className="button-row"><button className="button button-secondary" onClick={() => { const resume = resumes.find((item) => item.id === resumeId); if (resume) onPreview(resume) }}>Preview tailored resume</button><button className="button button-secondary" onClick={() => onRecheck?.(resumeId)}>Recheck ATS score</button></div></section>}
+    {overrides.some((override) => override.is_draft) && <section className="panel"><div className="panel-title"><div><span className="eyebrow">FINAL STEP</span><h2>How would you like to save your changes?</h2><p>Updating the existing resume replaces its current content. Saving a copy leaves the original unchanged.</p></div></div><div className="button-row"><button className="button button-primary" disabled={busy} onClick={() => void finalizeChanges('update_existing')}>{busy ? 'Saving…' : 'Update existing resume'}</button><button className="button button-secondary" disabled={busy || savedCopies >= 2} onClick={() => void finalizeChanges('save_copy')}>{busy ? 'Saving…' : `Save as a copy (${Math.max(0, 2 - savedCopies)} remaining)`}</button></div>{savedCopies >= 2 && <p className="muted">Maximum of two saved copies has been reached for this resume.</p>}</section>}
     <div className="optimization-columns">
       <section className="panel"><div className="panel-title"><div><h2>Session history</h2><p>Open any previous review session.</p></div></div>{sessions.length === 0 ? <p className="muted">No optimization sessions for this resume yet.</p> : <div className="history-list">{sessions.map((session) => <button className={`history-row ${selected?.id === session.id ? 'selected' : ''}`} key={session.id} onClick={() => void openSession(session.id)}><span><strong>{session.target_role || 'Resume optimization'}</strong><small>{new Date(session.created_at).toLocaleString()} · {session.suggestions.length} suggestions</small></span><span className="status-pill">{session.status}</span></button>)}</div>}</section>
       <section className="panel"><div className="panel-title"><div><h2>Content overrides</h2><p>Customized content applied only to this resume.</p></div><button className="button button-secondary" onClick={() => { const resume = resumes.find((item) => item.id === resumeId); if (resume) onPreview(resume) }}>Preview</button></div>{overrides.length === 0 ? <p className="muted">No content overrides applied.</p> : <div className="override-list">{overrides.map((override) => <article className="override-item" key={override.id}><div><strong>{override.section_type} · {override.field_name}</strong><p>{override.content}</p></div><button className="button button-danger" disabled={busy} onClick={() => void removeOverride(override)}>Remove</button></article>)}</div>}</section>

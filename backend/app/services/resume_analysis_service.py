@@ -157,7 +157,12 @@ class ResumeAnalysisService:
         return " ".join(values)
 
     @staticmethod
-    def get_resume_data(db: Session, resume_id: UUID):
+    def get_resume_data(
+        db: Session,
+        resume_id: UUID,
+        *,
+        include_drafts: bool = False,
+    ):
         resume = ResumeAnalysisService._get_resume(
             db,
             resume_id,
@@ -173,14 +178,22 @@ class ResumeAnalysisService:
             )
             .all()
         )
-        override_values = {
-            (
-                item.section_type,
-                str(item.source_item_id or ""),
-                item.field_name,
-            ): item.content
-            for item in all_overrides
-        }
+        override_values = {}
+        for item in all_overrides:
+            if item.is_draft and not include_drafts:
+                if item.draft_created:
+                    continue
+                content = item.previous_content
+            else:
+                content = item.content
+            if content is not None:
+                override_values[
+                    (
+                        item.section_type,
+                        str(item.source_item_id or ""),
+                        item.field_name,
+                    )
+                ] = content
         source_text_override = override_values.get(
             ("uploaded_resume", "", "source_text")
         )
@@ -321,7 +334,7 @@ class ResumeAnalysisService:
         normalized = resume_text.lower()
         required_sections = (
             ("education", "technical_skill", "project")
-            if profile.profile_type == "fresher"
+            if profile.profile_type in {"student", "fresher"}
             else (
                 "education",
                 "work_experience",
@@ -450,10 +463,13 @@ class ResumeAnalysisService:
         db: Session,
         resume_id: UUID,
         job_description: str | None = None,
+        *,
+        include_drafts: bool = False,
     ):
         resume_data = ResumeAnalysisService.get_resume_data(
             db,
             resume_id,
+            include_drafts=include_drafts,
         )
 
         resume_text = resume_data["resume_text"]
@@ -532,10 +548,10 @@ class ResumeAnalysisService:
             )
         )
 
-        if profile.profile_type == "fresher":
+        if profile.profile_type in {"student", "fresher"}:
             experience_score = 100.0
             experience_details = (
-                "Work experience is optional for fresher profiles."
+                "Work experience is optional for student and fresher profiles."
             )
         elif not job_keywords:
             experience_score = 100.0
@@ -595,7 +611,7 @@ class ResumeAnalysisService:
         # 5. Resume completeness: 10%
         required_sections = (
             ["education", "technical_skill", "project"]
-            if profile.profile_type == "fresher"
+            if profile.profile_type in {"student", "fresher"}
             else [
                 "education",
                 "work_experience",
@@ -711,7 +727,7 @@ class ResumeAnalysisService:
                 "with the job description."
             )
 
-        if not experience_text.strip() and profile.profile_type != "fresher":
+        if not experience_text.strip() and profile.profile_type not in {"student", "fresher"}:
             weaknesses.append(
                 "No work experience is selected in this resume."
             )
@@ -741,7 +757,7 @@ class ResumeAnalysisService:
                 "into your summary and experience descriptions."
             )
 
-        if experience_score < 50 and profile.profile_type != "fresher":
+        if experience_score < 50 and profile.profile_type not in {"student", "fresher"}:
             recommendations.append(
                 "Improve the descriptions of relevant responsibilities "
                 "and accomplishments."

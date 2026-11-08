@@ -1,5 +1,6 @@
 import { apiBlob, apiRequest, apiText } from './client'
 import type {
+  ProfileType,
   Resume,
   ResumeCreate,
   ResumeImportResponse,
@@ -66,9 +67,25 @@ export function downloadResumeDocx(id: string): Promise<Blob> {
   return apiBlob(`/resumes/${id}/download/docx`)
 }
 
+export interface FinalizeResumeChangesResponse {
+  resume: Resume
+  saved_copies: number
+  maximum_copies: number
+}
+
+export function finalizeResumeChanges(
+  id: string,
+  action: 'update_existing' | 'save_copy',
+): Promise<FinalizeResumeChangesResponse> {
+  return apiRequest<FinalizeResumeChangesResponse>(`/resumes/${id}/finalize-changes`, {
+    method: 'POST',
+    body: JSON.stringify({ action }),
+  })
+}
+
 export function importResume(
   file: File,
-  profileType: 'fresher' | 'experienced',
+  profileType: ProfileType,
   targetRole?: string,
 ): Promise<ResumeImportResponse> {
   const form = new FormData()

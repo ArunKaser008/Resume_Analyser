@@ -1,7 +1,7 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -27,6 +27,7 @@ router = APIRouter(
 def analyze_resume(
     resume_id: UUID,
     request: ResumeAnalysisRequest,
+    include_drafts: bool = Query(default=False),
     db: Session = Depends(get_db),
 ):
     try:
@@ -34,6 +35,7 @@ def analyze_resume(
             db=db,
             resume_id=resume_id,
             job_description=request.job_description,
+            include_drafts=include_drafts,
         )
 
     except LookupError as exc:
