@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>{{ resume.title }} - Resume Preview</title>
+
+    <style>
+        @page {
+            size: A4;
+            margin: 16mm;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #eef1f5;
+            color: #263238;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 13px;
+            line-height: 1.55;
+        }
+
+        .resume {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 30px auto;
+            padding: 18mm;
+            background: #ffffff;
+            box-shadow: 0 2px 14px rgba(0, 0, 0, 0.12);
+        }
+
+        .header {
+            padding-bottom: 16px;
+            border-bottom: 2px solid #243b53;
+        }
+
+        h1 {
+            margin: 0;
+            color: #172b4d;
+            font-size: 28px;
+            letter-spacing: 0.3px;
+        }
+
+        .professional-title {
+            margin-top: 4px;
+            color: #486581;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .contact {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px 16px;
+            margin-top: 12px;
+            color: #52606d;
+            font-size: 11px;
+        }
+
+        a {
+            color: #1769aa;
+            text-decoration: none;
+        }
+
+        section {
+            margin-top: 20px;
+            break-inside: auto;
+        }
+
+        h2 {
+            margin: 0 0 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #bcccdc;
+            color: #243b53;
+            font-size: 15px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .entry {
+            margin-bottom: 13px;
+            break-inside: avoid;
+        }
+
+        .entry-title {
+            margin: 0;
+            color: #243b53;
+            font-size: 13px;
+            font-weight: bold;
+        }
+
+        .entry-subtitle {
+            color: #52606d;
+            font-weight: 600;
+        }
+
+        .entry-meta {
+            color: #7b8794;
+            font-size: 11px;
+        }
+
+        .description {
+            margin-top: 4px;
+            white-space: pre-line;
+        }
+
+        .skills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+        }
+
+        .skill {
+            padding: 4px 9px;
+            border: 1px solid #d9e2ec;
+            border-radius: 4px;
+            background: #f5f7fa;
+            color: #334e68;
+            font-size: 11px;
+        }
+
+        .empty {
+            color: #9aa5b1;
+            font-style: italic;
+        }
+
+        @media print {
+            body {
+                background: #ffffff;
+            }
+
+            .resume {
+                width: auto;
+                min-height: auto;
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+
+            a {
+                color: inherit;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="resume">
+
+    <!-- PERSONAL INFORMATION -->
+    <header class="header">
+        <h1>{{ profile.full_name }}</h1>
+
+        {% if profile.professional_title %}
+            <div class="professional-title">
+                {{ profile.professional_title }}
+            </div>
+        {% endif %}
+
+        <div class="contact">
+            {% if profile.email %}
+                <span>{{ profile.email }}</span>
+            {% endif %}
+
+            {% if profile.phone %}
+                <span>{{ profile.phone }}</span>
+            {% endif %}
+
+            {% if profile.city %}
+                <span>{{ profile.city }}</span>
+            {% endif %}
+
+            {% if profile.linkedin_url %}
+                <a href="{{ profile.linkedin_url }}">LinkedIn</a>
+            {% endif %}
+
+            {% if profile.github_url %}
+                <a href="{{ profile.github_url }}">GitHub</a>
+            {% endif %}
+
+            {% if profile.portfolio_url %}
+                <a href="{{ profile.portfolio_url }}">Portfolio</a>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- PROFESSIONAL SUMMARY -->
+    {% if profile.summary %}
+    <section>
+        <h2>Professional Summary</h2>
+        <div class="description">{{ profile.summary }}</div>
+    </section>
+    {% endif %}
+
+    <!-- WORK EXPERIENCE -->
+    {% if sections.work_experience %}
+    <section>
+        <h2>Work Experience</h2>
+
+        {% for item in sections.work_experience %}
+        <div class="entry">
+            <div class="entry-title">{{ item.job_title }}</div>
+
+            <div class="entry-subtitle">
+                {{ item.company_name }}
+                {% if item.location %} | {{ item.location }}{% endif %}
+            </div>
+
+            <div class="entry-meta">
+                {% if item.start_date %}{{ item.start_date.strftime('%b %Y') }}{% endif %}
+                -
+                {% if item.is_current %}
+                    Present
+                {% elif item.end_date %}
+                    {{ item.end_date.strftime('%b %Y') }}
+                {% endif %}
+            </div>
+
+            {% if item.description %}
+                <div class="description">{{ item.description }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </section>
+    {% endif %}
+
+    <!-- TECHNICAL SKILLS -->
+    {% if sections.technical_skill %}
+    <section>
+        <h2>Technical Skills</h2>
+
+        <div class="skills">
+            {% for item in sections.technical_skill %}
+            <div class="skill">
+                {{ item.skill_name }}
+                {% if item.proficiency_level %}
+                    ({{ item.proficiency_level }})
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- PROJECTS -->
+    {% if sections.project %}
+    <section>
+        <h2>Projects</h2>
+
+        {% for item in sections.project %}
+        <div class="entry">
+            <div class="entry-title">{{ item.project_name }}</div>
+
+            {% if item.role %}
+                <div class="entry-subtitle">{{ item.role }}</div>
+            {% endif %}
+
+            {% if item.technologies %}
+                <div class="entry-meta">
+                    Technologies: {{ item.technologies }}
+                </div>
+            {% endif %}
+
+            {% if item.description %}
+                <div class="description">{{ item.description }}</div>
+            {% endif %}
+
+            {% if item.responsibilities %}
+                <div class="description">{{ item.responsibilities }}</div>
+            {% endif %}
+
+            {% if item.achievements %}
+                <div class="description">{{ item.achievements }}</div>
+            {% endif %}
+
+            {% if item.project_url %}
+                <div>
+                    <a href="{{ item.project_url }}">Project Link</a>
+                </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </section>
+    {% endif %}
+
+    <!-- EDUCATION -->
+    {% if sections.education %}
+    <section>
+        <h2>Education</h2>
+
+        {% for item in sections.education %}
+        <div class="entry">
+            <div class="entry-title">
+                {{ item.degree }}
+                {% if item.field_of_study %} in {{ item.field_of_study }}{% endif %}
+            </div>
+
+            <div class="entry-subtitle">{{ item.institution_name }}</div>
+
+            <div class="entry-meta">
+                {% if item.start_date %}{{ item.start_date.strftime('%Y') }}{% endif %}
+                -
+                {% if item.is_current %}
+                    Present
+                {% elif item.end_date %}
+                    {{ item.end_date.strftime('%Y') }}
+                {% endif %}
+            </div>
+
+            {% if item.grade %}
+                <div>Grade: {{ item.grade }}</div>
+            {% endif %}
+
+            {% if item.description %}
+                <div class="description">{{ item.description }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </section>
+    {% endif %}
+
+    <!-- CERTIFICATIONS -->
+    {% if sections.certification %}
+    <section>
+        <h2>Certifications</h2>
+
+        {% for item in sections.certification %}
+        <div class="entry">
+            <div class="entry-title">{{ item.certification_name }}</div>
+
+            <div class="entry-subtitle">
+                {{ item.issuing_organization }}
+            </div>
+
+            {% if item.issue_date %}
+                <div class="entry-meta">
+                    Issued: {{ item.issue_date.strftime('%b %Y') }}
+                </div>
+            {% endif %}
+
+            {% if item.credential_url %}
+                <a href="{{ item.credential_url }}">View Credential</a>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </section>
+    {% endif %}
+
+    <!-- ACHIEVEMENTS -->
+    {% if sections.achievement %}
+    <section>
+        <h2>Achievements</h2>
+
+        {% for item in sections.achievement %}
+        <div class="entry">
+            <div class="entry-title">{{ item.title }}</div>
+
+            {% if item.issuing_organization %}
+                <div class="entry-subtitle">
+                    {{ item.issuing_organization }}
+                </div>
+            {% endif %}
+
+            {% if item.description %}
+                <div class="description">{{ item.description }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </section>
+    {% endif %}
+
+</div>
+
+</body>
+</html>

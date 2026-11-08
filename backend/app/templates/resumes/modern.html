@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ resume.title }}</title>
+<style>
+@page { size: A4; margin: 16mm; }
+* { box-sizing: border-box; }
+body {
+    margin: 0; background: #eef2f7; color: #263445;
+    font: 13px/1.6 Arial, sans-serif;
+}
+.resume {
+    width: 210mm; min-height: 297mm; margin: 25px auto;
+    padding: 18mm; background: white;
+    box-shadow: 0 2px 14px #00000018;
+}
+.resume-header {
+    border-bottom: 3px solid #2878b5;
+    padding-bottom: 16px;
+}
+h1 { color: #173b5e; font-size: 29px; margin: 0; }
+.professional-title { color: #2878b5; font-size: 16px; font-weight: bold; }
+.contact { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; font-size: 11px; }
+a { color: #2878b5; text-decoration: none; }
+section { margin-top: 20px; }
+h2 {
+    color: #173b5e; font-size: 15px; text-transform: uppercase;
+    letter-spacing: 1px; border-bottom: 1px solid #cbd8e5;
+    padding-bottom: 5px; margin-bottom: 10px;
+}
+.entry { margin-bottom: 13px; break-inside: avoid; }
+h3 { color: #244d70; font-size: 13px; margin: 0; }
+.subtitle { font-weight: bold; color: #52677c; }
+.meta { color: #7c8996; font-size: 11px; }
+.description { white-space: pre-line; margin: 5px 0; }
+.skills { display: flex; flex-wrap: wrap; gap: 7px; }
+.skill {
+    background: #edf5fc; color: #24577e;
+    border: 1px solid #d1e3f1; border-radius: 5px;
+    padding: 4px 9px; font-size: 11px;
+}
+@media print {
+    body { background: white; }
+    .resume { width: auto; min-height: auto; margin: 0; padding: 0; box-shadow: none; }
+}
+</style>
+</head>
+<body>
+<div class="resume">
+    {% include "resumes/content.html" %}
+</div>
+</body>
+</html>

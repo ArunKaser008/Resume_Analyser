@@ -1,0 +1,155 @@
+<header class="resume-header">
+    <h1>{{ profile.full_name }}</h1>
+
+    {% if profile.professional_title %}
+        <div class="professional-title">{{ profile.professional_title }}</div>
+    {% endif %}
+
+    <div class="contact">
+        {% if profile.email %}<span>{{ profile.email }}</span>{% endif %}
+        {% if profile.phone %}<span>{{ profile.phone }}</span>{% endif %}
+        {% if profile.city %}<span>{{ profile.city }}</span>{% endif %}
+
+        {% if profile.linkedin_url %}
+            <a href="{{ profile.linkedin_url }}">LinkedIn</a>
+        {% endif %}
+        {% if profile.github_url %}
+            <a href="{{ profile.github_url }}">GitHub</a>
+        {% endif %}
+        {% if profile.portfolio_url %}
+            <a href="{{ profile.portfolio_url }}">Portfolio</a>
+        {% endif %}
+    </div>
+</header>
+
+{% if profile.summary %}
+<section>
+    <h2>Professional Summary</h2>
+    <p class="description">{{ profile.summary }}</p>
+</section>
+{% endif %}
+
+{% if sections.work_experience %}
+<section>
+    <h2>Work Experience</h2>
+    {% for item in sections.work_experience %}
+    <article class="entry">
+        <h3>{{ item.job_title }}</h3>
+        <div class="subtitle">
+            {{ item.company_name }}
+            {% if item.location %} | {{ item.location }}{% endif %}
+        </div>
+        <div class="meta">
+            {% if item.start_date %}{{ item.start_date.strftime('%b %Y') }}{% endif %}
+            -
+            {% if item.is_current %}Present
+            {% elif item.end_date %}{{ item.end_date.strftime('%b %Y') }}{% endif %}
+        </div>
+        {% if item.description %}
+            <p class="description">{{ item.description }}</p>
+        {% endif %}
+    </article>
+    {% endfor %}
+</section>
+{% endif %}
+
+{% if sections.technical_skill %}
+<section>
+    <h2>Technical Skills</h2>
+    <div class="skills">
+        {% for item in sections.technical_skill %}
+        <span class="skill">
+            {{ item.skill_name }}
+            {% if item.proficiency_level %} ({{ item.proficiency_level }}){% endif %}
+        </span>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if sections.project %}
+<section>
+    <h2>Projects</h2>
+    {% for item in sections.project %}
+    <article class="entry">
+        <h3>{{ item.project_name }}</h3>
+        {% if item.role %}<div class="subtitle">{{ item.role }}</div>{% endif %}
+        {% if item.technologies %}
+            <div class="meta">Technologies: {{ item.technologies }}</div>
+        {% endif %}
+        {% if item.description %}
+            <p class="description">{{ item.description }}</p>
+        {% endif %}
+        {% if item.responsibilities %}
+            <p class="description">{{ item.responsibilities }}</p>
+        {% endif %}
+        {% if item.achievements %}
+            <p class="description">{{ item.achievements }}</p>
+        {% endif %}
+        {% if item.project_url %}
+            <a href="{{ item.project_url }}">Project Link</a>
+        {% endif %}
+    </article>
+    {% endfor %}
+</section>
+{% endif %}
+
+{% if sections.education %}
+<section>
+    <h2>Education</h2>
+    {% for item in sections.education %}
+    <article class="entry">
+        <h3>
+            {{ item.degree }}
+            {% if item.field_of_study %} in {{ item.field_of_study }}{% endif %}
+        </h3>
+        <div class="subtitle">{{ item.institution_name }}</div>
+        <div class="meta">
+            {% if item.start_date %}{{ item.start_date.strftime('%Y') }}{% endif %}
+            -
+            {% if item.is_current %}Present
+            {% elif item.end_date %}{{ item.end_date.strftime('%Y') }}{% endif %}
+        </div>
+        {% if item.grade %}<div>Grade: {{ item.grade }}</div>{% endif %}
+        {% if item.description %}
+            <p class="description">{{ item.description }}</p>
+        {% endif %}
+    </article>
+    {% endfor %}
+</section>
+{% endif %}
+
+{% if sections.certification %}
+<section>
+    <h2>Certifications</h2>
+    {% for item in sections.certification %}
+    <article class="entry">
+        <h3>{{ item.certification_name }}</h3>
+        <div class="subtitle">{{ item.issuing_organization }}</div>
+        {% if item.issue_date %}
+            <div class="meta">Issued: {{ item.issue_date.strftime('%b %Y') }}</div>
+        {% endif %}
+        {% if item.credential_url %}
+            <a href="{{ item.credential_url }}">View Credential</a>
+        {% endif %}
+    </article>
+    {% endfor %}
+</section>
+{% endif %}
+
+{% if sections.achievement %}
+<section>
+    <h2>Achievements</h2>
+    {% for item in sections.achievement %}
+    <article class="entry">
+        <h3>{{ item.title }}</h3>
+        {% if item.issuing_organization %}
+            <div class="subtitle">{{ item.issuing_organization }}</div>
+        {% endif %}
+        {% if item.description %}
+            <p class="description">{{ item.description }}</p>
+        {% endif %}
+    </article>
+    {% endfor %}
+</section>
+{% endif %}

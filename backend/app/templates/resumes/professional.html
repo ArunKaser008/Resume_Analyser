@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ resume.title }}</title>
+<style>
+@page { size: A4; margin: 17mm; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #f1f1f1; color: #222; font: 13px/1.55 Arial, sans-serif; }
+.resume {
+    width: 210mm; min-height: 297mm; margin: 25px auto;
+    padding: 18mm; background: white; box-shadow: 0 2px 12px #00000018;
+}
+.resume-header { text-align: center; border-bottom: 1px solid #555; padding-bottom: 14px; }
+h1 { font-size: 25px; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
+.professional-title { font-size: 14px; margin-top: 5px; }
+.contact { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px 13px; margin-top: 10px; font-size: 11px; }
+a { color: #222; text-decoration: underline; }
+section { margin-top: 19px; }
+h2 {
+    font-size: 14px; text-transform: uppercase; letter-spacing: .6px;
+    border-bottom: 1px solid #555; padding-bottom: 4px; margin-bottom: 9px;
+}
+.entry { margin-bottom: 12px; break-inside: avoid; }
+h3 { font-size: 13px; margin: 0; }
+.subtitle { font-weight: bold; }
+.meta { font-size: 11px; color: #555; }
+.description { white-space: pre-line; margin: 4px 0; }
+.skills { display: flex; flex-wrap: wrap; gap: 5px 12px; }
+.skill { font-size: 12px; }
+@media print {
+    body { background: white; }
+    .resume { width: auto; min-height: auto; margin: 0; padding: 0; box-shadow: none; }
+}
+</style>
+</head>
+<body>
+<div class="resume">
+    {% include "resumes/content.html" %}
+</div>
+</body>
+</html>
