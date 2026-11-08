@@ -152,6 +152,7 @@ export default function AnalysisPage({ resumes, initialResumeId, onResumeImporte
       const result = await finalizeResumeChanges(analyzedResumeId, action)
       setAnalyzedResumeId(result.resume.id)
       setDraftOverrides([])
+      setSession(null)
       await onResumeFinalized?.(result.resume)
       setAnalysis(await analyzeResume(result.resume.id, description.trim() || undefined))
       setNotice(action === 'save_copy'

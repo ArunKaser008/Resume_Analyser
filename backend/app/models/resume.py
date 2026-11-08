@@ -5,6 +5,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    JSON,
     String,
     Text,
     Uuid,
@@ -64,6 +65,24 @@ class Resume(Base):
     source_text: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
+    )
+
+    custom_sections: Mapped[list[dict]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+    )
+
+    design_settings: Mapped[dict] = mapped_column(
+        JSON,
+        default=dict,
+        nullable=False,
+    )
+
+    section_order: Mapped[list[str]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
     )
 
     created_at: Mapped[datetime] = mapped_column(

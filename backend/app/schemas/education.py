@@ -14,7 +14,7 @@ class EducationCreate(BaseModel):
     end_date: date | None = None
     is_current: bool = False
     grade: str | None = Field(default=None, max_length=50)
-    description: str | None = None
+    description: str | None = Field(default=None, max_length=5000)
 
     @model_validator(mode="after")
     def validate_dates(self):
@@ -33,7 +33,7 @@ class EducationUpdate(BaseModel):
     end_date: date | None = None
     is_current: bool | None = None
     grade: str | None = Field(default=None, max_length=50)
-    description: str | None = None
+    description: str | None = Field(default=None, max_length=5000)
 
 
 class EducationResponse(BaseModel):

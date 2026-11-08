@@ -5,28 +5,40 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ resume.title }}</title>
 <style>
-@page { size: A4; margin: 16mm; }
+@page { size: {{ design_settings.page_size }}; margin: 16mm; }
 * { box-sizing: border-box; }
 body {
     margin: 0; background: #eef2f7; color: #263445;
-    font: 13px/1.6 Arial, sans-serif;
+    font: {{ design_settings.font_size }}px/1.6 {{ design_settings.font_family }}, sans-serif;
 }
 .resume {
-    width: 210mm; min-height: 297mm; margin: 25px auto;
+    display: flex;
+    flex-direction: column;
+    width: {% if design_settings.page_size == "Letter" %}8.5in{% else %}210mm{% endif %};
+    min-height: {% if design_settings.page_size == "Letter" %}11in{% else %}297mm{% endif %};
+    margin: 25px auto;
     padding: 18mm; background: white;
     box-shadow: 0 2px 14px #00000018;
+    border-top: 4px solid {{ design_settings.accent_color }};
+}
+.resume[data-layout="two-column"] {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 24px;
+    align-content: start;
 }
 .resume-header {
-    border-bottom: 3px solid #2878b5;
+    grid-column: 1 / -1;
+    border-bottom: 3px solid {{ design_settings.accent_color }};
     padding-bottom: 16px;
 }
-h1 { color: #173b5e; font-size: 29px; margin: 0; }
-.professional-title { color: #2878b5; font-size: 16px; font-weight: bold; }
+h1 { color: #173b5e; font-size: 2.2em; margin: 0; }
+.professional-title { color: {{ design_settings.accent_color }}; font-size: 1.2em; font-weight: bold; }
 .contact { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; font-size: 11px; }
-a { color: #2878b5; text-decoration: none; }
-section { margin-top: 20px; }
+a { color: {{ design_settings.accent_color }}; text-decoration: none; }
+section { margin-top: {% if design_settings.spacing == "compact" %}12{% elif design_settings.spacing == "spacious" %}28{% else %}20{% endif %}px; min-width: 0; }
 h2 {
-    color: #173b5e; font-size: 15px; text-transform: uppercase;
+    color: {{ design_settings.accent_color }}; font-size: 1.15em; text-transform: uppercase;
     letter-spacing: 1px; border-bottom: 1px solid #cbd8e5;
     padding-bottom: 5px; margin-bottom: 10px;
 }
@@ -49,7 +61,7 @@ h3 { color: #244d70; font-size: 13px; margin: 0; }
 </style>
 </head>
 <body>
-<div class="resume">
+<div class="resume" data-layout="{{ design_settings.layout }}">
     {% include "resumes/content.html" %}
 </div>
 </body>

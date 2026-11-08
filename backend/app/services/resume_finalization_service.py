@@ -40,6 +40,15 @@ class ResumeFinalizationService:
                 raise ValueError("Choose whether to update the existing resume or save a copy.")
 
             root_id = resume.parent_resume_id or resume.id
+            if resume.parent_resume_id is not None:
+                root_resume = (
+                    db.query(Resume)
+                    .filter(Resume.id == root_id)
+                    .with_for_update()
+                    .first()
+                )
+                if root_resume is None:
+                    raise LookupError("Original resume not found.")
             saved_copies = (
                 db.query(func.count(Resume.id))
                 .filter(Resume.parent_resume_id == root_id)
@@ -77,6 +86,9 @@ class ResumeFinalizationService:
                 is_primary=False,
                 source_filename=resume.source_filename,
                 source_text=resume.source_text,
+                custom_sections=resume.custom_sections,
+                design_settings=resume.design_settings,
+                section_order=resume.section_order,
             )
             db.add(saved)
             db.flush()

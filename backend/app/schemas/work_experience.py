@@ -14,7 +14,7 @@ class WorkExperienceCreate(BaseModel):
     start_date: date
     end_date: date | None = None
     is_current: bool = False
-    description: str | None = None
+    description: str | None = Field(default=None, max_length=5000)
 
     @model_validator(mode="after")
     def validate_dates(self):
@@ -33,7 +33,7 @@ class WorkExperienceUpdate(BaseModel):
     start_date: date | None = None
     end_date: date | None = None
     is_current: bool | None = None
-    description: str | None = None
+    description: str | None = Field(default=None, max_length=5000)
 
 
 class WorkExperienceResponse(BaseModel):

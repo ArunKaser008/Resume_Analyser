@@ -92,6 +92,28 @@ class ResumeDocumentServiceTests(unittest.TestCase):
 
         self.assertEqual(profile.full_name, "Avery Example")
 
+    def test_student_import_does_not_store_a_target_role(self):
+        source = Document()
+        source.add_paragraph("Avery Example")
+        output = BytesIO()
+        source.save(output)
+        db = Mock()
+        db.flush.side_effect = lambda: setattr(db.add.call_args_list[0].args[0], "id", uuid4())
+
+        profile, resume, _ = ResumeDocumentService.import_resume(
+            db=db,
+            filename="avery-resume.docx",
+            content=output.getvalue(),
+            profile_type="student",
+            full_name="Avery Example",
+            title=None,
+            target_role="Software Engineer",
+        )
+
+        self.assertEqual(profile.profile_type, "student")
+        self.assertIsNone(profile.professional_title)
+        self.assertIsNone(resume.target_role)
+
     def test_rejects_unsupported_file_types(self):
         with self.assertRaisesRegex(ValueError, "PDF, DOCX, or TXT"):
             ResumeDocumentService.extract_text("resume.png", b"not a resume")

@@ -53,13 +53,12 @@ class ResumeSectionRepository:
         sections: list[dict],
     ):
         try:
+            db.query(ResumeSectionItem).filter(
+                ResumeSectionItem.resume_id == resume_id,
+            ).delete(synchronize_session=False)
+
             for section in sections:
                 section_type = section["section_type"]
-
-                db.query(ResumeSectionItem).filter(
-                    ResumeSectionItem.resume_id == resume_id,
-                    ResumeSectionItem.section_type == section_type,
-                ).delete(synchronize_session=False)
 
                 records = [
                     ResumeSectionItem(

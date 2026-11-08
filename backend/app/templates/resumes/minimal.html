@@ -5,19 +5,30 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ resume.title }}</title>
 <style>
-@page { size: A4; margin: 15mm; }
+@page { size: {{ design_settings.page_size }}; margin: 15mm; }
 * { box-sizing: border-box; }
-body { margin: 0; background: #f5f5f5; color: #111; font: 12px/1.45 Arial, sans-serif; }
+body { margin: 0; background: #f5f5f5; color: #111; font: {{ design_settings.font_size }}px/1.45 {{ design_settings.font_family }}, sans-serif; }
 .resume {
-    width: 210mm; min-height: 297mm; margin: 25px auto;
+    display: flex;
+    flex-direction: column;
+    width: {% if design_settings.page_size == "Letter" %}8.5in{% else %}210mm{% endif %};
+    min-height: {% if design_settings.page_size == "Letter" %}11in{% else %}297mm{% endif %};
+    margin: 25px auto;
     padding: 17mm; background: white; box-shadow: 0 2px 12px #00000015;
+    border-top: 3px solid {{ design_settings.accent_color }};
 }
-.resume-header { border-bottom: 1px solid #222; padding-bottom: 10px; }
+.resume[data-layout="two-column"] {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 24px;
+    align-content: start;
+}
+.resume-header { grid-column: 1 / -1; border-bottom: 1px solid #222; padding-bottom: 10px; }
 h1 { font-size: 25px; margin: 0; }
 .professional-title { font-size: 13px; margin-top: 3px; }
 .contact { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: 10px; }
-a { color: #111; text-decoration: none; }
-section { margin-top: 15px; }
+a { color: {{ design_settings.accent_color }}; text-decoration: none; }
+section { min-width: 0; margin-top: {% if design_settings.spacing == "compact" %}10{% elif design_settings.spacing == "spacious" %}24{% else %}15{% endif %}px; }
 h2 {
     font-size: 12px; text-transform: uppercase; letter-spacing: .5px;
     border-bottom: 1px solid #999; padding-bottom: 3px; margin-bottom: 7px;
@@ -37,7 +48,7 @@ h3 { font-size: 12px; margin: 0; }
 </style>
 </head>
 <body>
-<div class="resume">
+<div class="resume" data-layout="{{ design_settings.layout }}">
     {% include "resumes/content.html" %}
 </div>
 </body>

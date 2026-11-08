@@ -25,21 +25,21 @@
 {% endif %}
 
 {% if profile.summary %}
-<section>
+<section style="order: {{ section_positions.summary }}">
     <h2>Professional Summary</h2>
     <p class="description">{{ profile.summary }}</p>
 </section>
 {% endif %}
 
 {% if resume.source_text %}
-<section>
+<section style="order: {{ section_positions.uploaded_resume }}">
     <h2>Resume Content</h2>
     <p class="description source-content">{{ resume.source_text }}</p>
 </section>
 {% endif %}
 
 {% if sections.work_experience %}
-<section>
+<section style="order: {{ section_positions.work_experience }}">
     <h2>Work Experience</h2>
     {% for item in sections.work_experience %}
     <article class="entry">
@@ -63,7 +63,7 @@
 {% endif %}
 
 {% if sections.technical_skill %}
-<section>
+<section style="order: {{ section_positions.technical_skill }}">
     <h2>Technical Skills</h2>
     <div class="skills">
         {% for item in sections.technical_skill %}
@@ -77,7 +77,7 @@
 {% endif %}
 
 {% if sections.project %}
-<section>
+<section style="order: {{ section_positions.project }}">
     <h2>Projects</h2>
     {% for item in sections.project %}
     <article class="entry">
@@ -104,7 +104,7 @@
 {% endif %}
 
 {% if sections.education %}
-<section>
+<section style="order: {{ section_positions.education }}">
     <h2>Education</h2>
     {% for item in sections.education %}
     <article class="entry">
@@ -129,7 +129,7 @@
 {% endif %}
 
 {% if sections.certification %}
-<section>
+<section style="order: {{ section_positions.certification }}">
     <h2>Certifications</h2>
     {% for item in sections.certification %}
     <article class="entry">
@@ -147,7 +147,7 @@
 {% endif %}
 
 {% if sections.achievement %}
-<section>
+<section style="order: {{ section_positions.achievement }}">
     <h2>Achievements</h2>
     {% for item in sections.achievement %}
     <article class="entry">
@@ -162,3 +162,30 @@
     {% endfor %}
 </section>
 {% endif %}
+
+{% for custom_section in custom_sections %}
+{% if custom_section.entries %}
+<section style="order: {{ section_positions.get(custom_section.id|string, 100) }}">
+    <h2>{{ custom_section.title }}</h2>
+    {% for item in custom_section.entries %}
+    <article class="entry">
+        <h3>{{ item.title }}</h3>
+        {% if item.subtitle or item.location %}
+            <div class="subtitle">
+                {{ item.subtitle }}{% if item.subtitle and item.location %} | {% endif %}{{ item.location }}
+            </div>
+        {% endif %}
+        {% if item.date or item.url %}
+            <div class="meta">
+                {{ item.date }}{% if item.date and item.url %} | {% endif %}
+                {% if item.url %}<a href="{{ item.url }}">Link</a>{% endif %}
+            </div>
+        {% endif %}
+        {% if item.description %}
+            <p class="description">{{ item.description }}</p>
+        {% endif %}
+    </article>
+    {% endfor %}
+</section>
+{% endif %}
+{% endfor %}

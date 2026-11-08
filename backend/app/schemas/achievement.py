@@ -11,7 +11,7 @@ class AchievementCreate(BaseModel):
     category: str | None = Field(default=None, max_length=100)
     issuing_organization: str | None = Field(default=None, max_length=200)
     achievement_date: date | None = None
-    description: str | None = None
+    description: str | None = Field(default=None, max_length=5000)
     credential_url: HttpUrl | None = None
 
 
@@ -20,7 +20,7 @@ class AchievementUpdate(BaseModel):
     category: str | None = Field(default=None, max_length=100)
     issuing_organization: str | None = Field(default=None, max_length=200)
     achievement_date: date | None = None
-    description: str | None = None
+    description: str | None = Field(default=None, max_length=5000)
     credential_url: HttpUrl | None = None
 
 

@@ -12,6 +12,7 @@ from app.repositories.resume_preview_repository import (
     ResumePreviewRepository,
     SECTION_MODELS,
 )
+from app.schemas.resume import ResumeDesignSettings
 
 
 TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "templates"
@@ -26,6 +27,14 @@ AVAILABLE_TEMPLATES = {
     "professional",
     "minimal",
 }
+DEFAULT_SECTION_ORDER = [
+    "work_experience",
+    "technical_skill",
+    "project",
+    "education",
+    "certification",
+    "achievement",
+]
 
 
 class ResumePreviewService:
@@ -114,11 +123,31 @@ class ResumePreviewService:
         template = jinja_env.get_template(
             f"resumes/{template_name}.html"
         )
+        section_order = resume.section_order or DEFAULT_SECTION_ORDER
+        section_positions = {
+            section_type: 3 + section_order.index(section_type)
+            for section_type in section_order
+        }
+        for section_type in SECTION_MODELS:
+            section_positions.setdefault(
+                section_type,
+                3 + len(section_order) + list(SECTION_MODELS).index(section_type),
+            )
+        section_positions.update(summary=1, uploaded_resume=2)
+        for index, custom_section in enumerate(resume.custom_sections or []):
+            section_positions[str(custom_section["id"])] = (
+                3 + len(section_order) + len(SECTION_MODELS) + index
+            )
 
         return template.render(
             resume=resume,
             profile=profile,
             sections=resume_sections,
+            custom_sections=resume.custom_sections or [],
+            design_settings=ResumeDesignSettings.model_validate(
+                resume.design_settings or {},
+            ).model_dump(),
+            section_positions=section_positions,
         )
 
     @staticmethod

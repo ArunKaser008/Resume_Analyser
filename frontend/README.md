@@ -9,14 +9,20 @@ Set `VITE_API_BASE_URL` in `frontend/.env` to the backend `/api/v1` URL.
   job-description-based resume updates. No separate career-profile setup is
   exposed.
 - **ATS resume analyser:** upload a PDF, DOCX, or TXT resume, choose Fresher
-  or Experienced, and view a baseline ATS score. An optional job description
-  enables role-specific keyword analysis.
+  Student, or Experienced, and view a baseline ATS score. Target role is not
+  requested for Students. An optional job description enables role-specific
+  keyword analysis. AI can suggest and stage changes for a selected weakness;
+  final changes can update the existing resume or be saved as one of up to two
+  copies.
 - **Resume builder:** create a resume directly, build it from sections,
-  preview it, and download it as PDF or DOCX. No separate career-profile
-  setup is needed.
+  edit contact details and summary, add standard or custom sections, and
+  customize the template, one/two-column layout, font, accent color, spacing,
+  page size, and section order. Preview and download it as PDF or DOCX. No
+  separate career-profile setup is needed.
 - **JD resume update:** upload a resume or choose a saved one, provide a job
   description, then accept/reject and apply suggestions individually. Applied
-  changes remain resume-specific.
+  changes remain resume-specific and can be saved to the existing version or
+  as one of up to two copies.
 
 Uploads are limited to 10 MB. Text is extracted from selectable PDF text,
 DOCX paragraphs/tables, or UTF-8 TXT files; scanned image-only PDFs are not

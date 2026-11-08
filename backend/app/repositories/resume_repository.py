@@ -8,13 +8,20 @@ from app.schemas.resume import ResumeCreate, ResumeUpdate
 
 
 def create(db: Session, data: ResumeCreate) -> Resume:
-    resume = Resume(**data.model_dump(include={
+    values = data.model_dump(include={
         "career_profile_id",
         "title",
         "target_role",
         "template_name",
         "is_primary",
-    }))
+        "section_order",
+    })
+    values["custom_sections"] = [
+        section.model_dump(mode="json")
+        for section in data.custom_sections
+    ]
+    values["design_settings"] = data.design_settings.model_dump()
+    resume = Resume(**values)
     db.add(resume)
     db.commit()
     db.refresh(resume)
@@ -50,7 +57,7 @@ def update(
     data: ResumeUpdate,
 ) -> Resume:
 
-    for field, value in data.model_dump(exclude_unset=True).items():
+    for field, value in data.model_dump(exclude_unset=True, mode="json").items():
         setattr(resume, field, value)
 
     db.commit()

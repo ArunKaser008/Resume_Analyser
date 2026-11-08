@@ -2,7 +2,59 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
+
+
+class CustomResumeEntry(BaseModel):
+    title: str = Field(min_length=2, max_length=200)
+    subtitle: str | None = Field(default=None, max_length=200)
+    date: str | None = Field(default=None, max_length=50)
+    location: str | None = Field(default=None, max_length=150)
+    url: HttpUrl | None = None
+    description: str | None = Field(default=None, max_length=5000)
+
+
+class CustomResumeSection(BaseModel):
+    id: UUID
+    section_type: Literal[
+        "language",
+        "volunteer",
+        "publication",
+        "course",
+        "interest",
+        "reference",
+        "custom",
+    ]
+    title: str = Field(min_length=2, max_length=60)
+    entries: list[CustomResumeEntry] = Field(default_factory=list, max_length=50)
+
+
+def ensure_unique_custom_section_ids(sections):
+    ids = [section.id for section in sections]
+    if len(ids) != len(set(ids)):
+        raise ValueError("Custom section IDs must be unique.")
+    return sections
+
+
+class ResumeDesignSettings(BaseModel):
+    layout: Literal["single-column", "two-column"] = "single-column"
+    font_family: Literal["Arial", "Georgia", "Inter", "Tahoma"] = "Arial"
+    font_size: int = Field(default=12, ge=10, le=14)
+    spacing: Literal["compact", "comfortable", "spacious"] = "comfortable"
+    accent_color: str = Field(default="#2878B5", pattern=r"^#[0-9A-Fa-f]{6}$")
+    page_size: Literal["A4", "Letter"] = "A4"
+
+
+ResumeSectionOrder = list[
+    Literal[
+        "education",
+        "work_experience",
+        "technical_skill",
+        "project",
+        "certification",
+        "achievement",
+    ]
+]
 
 
 class ResumeCreate(BaseModel):
@@ -13,6 +65,21 @@ class ResumeCreate(BaseModel):
     target_role: str | None = Field(default=None, max_length=200)
     template_name: str = Field(default="modern", max_length=50)
     is_primary: bool = False
+    custom_sections: list[CustomResumeSection] = Field(default_factory=list, max_length=12)
+    design_settings: ResumeDesignSettings = Field(default_factory=ResumeDesignSettings)
+    section_order: ResumeSectionOrder = Field(default_factory=list, max_length=6)
+
+    @field_validator("custom_sections")
+    @classmethod
+    def unique_custom_section_ids(cls, sections):
+        return ensure_unique_custom_section_ids(sections)
+
+    @field_validator("section_order")
+    @classmethod
+    def unique_section_order(cls, section_order):
+        if len(section_order) != len(set(section_order)):
+            raise ValueError("Section order cannot contain duplicates.")
+        return section_order
 
 
 class ResumeUpdate(BaseModel):
@@ -20,6 +87,21 @@ class ResumeUpdate(BaseModel):
     target_role: str | None = Field(default=None, max_length=200)
     template_name: str | None = Field(default=None, max_length=50)
     is_primary: bool | None = None
+    custom_sections: list[CustomResumeSection] = Field(default_factory=list, max_length=12)
+    design_settings: ResumeDesignSettings = Field(default_factory=ResumeDesignSettings)
+    section_order: ResumeSectionOrder = Field(default_factory=list, max_length=6)
+
+    @field_validator("custom_sections")
+    @classmethod
+    def unique_custom_section_ids(cls, sections):
+        return ensure_unique_custom_section_ids(sections)
+
+    @field_validator("section_order")
+    @classmethod
+    def unique_section_order(cls, section_order):
+        if len(section_order) != len(set(section_order)):
+            raise ValueError("Section order cannot contain duplicates.")
+        return section_order
 
 
 class ResumeResponse(BaseModel):
@@ -33,6 +115,9 @@ class ResumeResponse(BaseModel):
     template_name: str
     is_primary: bool
     source_filename: str | None = None
+    custom_sections: list[CustomResumeSection] = Field(default_factory=list)
+    design_settings: ResumeDesignSettings = Field(default_factory=ResumeDesignSettings)
+    section_order: ResumeSectionOrder = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 

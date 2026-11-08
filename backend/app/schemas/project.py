@@ -9,20 +9,20 @@ class ProjectCreate(BaseModel):
     career_profile_id: UUID
     project_name: str = Field(min_length=2, max_length=200)
     role: str | None = Field(default=None, max_length=150)
-    technologies: str | None = None
-    description: str | None = None
-    responsibilities: str | None = None
-    achievements: str | None = None
+    technologies: str | None = Field(default=None, max_length=500)
+    description: str | None = Field(default=None, max_length=5000)
+    responsibilities: str | None = Field(default=None, max_length=5000)
+    achievements: str | None = Field(default=None, max_length=5000)
     project_url: HttpUrl | None = None
 
 
 class ProjectUpdate(BaseModel):
     project_name: str | None = Field(default=None, min_length=2, max_length=200)
     role: str | None = Field(default=None, max_length=150)
-    technologies: str | None = None
-    description: str | None = None
-    responsibilities: str | None = None
-    achievements: str | None = None
+    technologies: str | None = Field(default=None, max_length=500)
+    description: str | None = Field(default=None, max_length=5000)
+    responsibilities: str | None = Field(default=None, max_length=5000)
+    achievements: str | None = Field(default=None, max_length=5000)
     project_url: HttpUrl | None = None
 
 

@@ -141,7 +141,7 @@ function App() {
           {page === 'ats' && <AnalysisPage key={analysisResumeId || 'upload'} resumes={resumes} initialResumeId={analysisResumeId || undefined} onResumeImported={handleResumeImported} onResumeFinalized={handleResumeImported} />}
           {page === 'builder' && <ResumeLibraryPage resumes={resumes} onChanged={refreshWorkspace} onBuild={openBuilder} onPreview={openPreview} />}
           {page === 'builder-edit' && (selectedResume && selectedProfile
-            ? <ResumeBuilderPage resume={selectedResume} profile={selectedProfile} onPreview={() => openPreview(selectedResume)} onResumeChanged={(resume) => { setSelectedResume(resume); navigate('builder') }} />
+            ? <ResumeBuilderPage resume={selectedResume} profile={selectedProfile} onPreview={() => openPreview(selectedResume)} onResumeUpdated={(resume) => { setSelectedResume(resume); setResumes((current) => current.map((item) => item.id === resume.id ? resume : item)) }} onProfileChanged={(profile) => setProfiles((current) => current.map((item) => item.id === profile.id ? profile : item))} onResumeChanged={(resume) => { setSelectedResume(resume); navigate('builder') }} />
             : <SelectionEmpty title="Select a resume to edit" description="Choose a resume in the builder to add and organize sections." onClick={() => navigate('builder')} button="Open resume builder" />)}
           {page === 'preview' && (selectedResume
             ? <ResumePreviewPage resume={selectedResume} onResumeChanged={(resume) => { setSelectedResume(resume); setResumes((current) => current.map((item) => item.id === resume.id ? resume : item)) }} onBack={() => navigate('builder-edit')} />

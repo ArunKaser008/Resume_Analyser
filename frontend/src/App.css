@@ -845,6 +845,85 @@ input[type='checkbox'] {
   margin-top: 5px;
 }
 
+.builder-customization {
+  display: grid;
+  gap: 13px;
+  margin-bottom: 13px;
+}
+
+.builder-customization .form-grid {
+  align-items: start;
+  row-gap: 15px;
+}
+
+.builder-customization input,
+.builder-customization textarea,
+.builder-customization select,
+.modal-card input,
+.modal-card textarea,
+.modal-card select {
+  min-height: 38px;
+  font-size: 12px;
+}
+
+.builder-customization textarea,
+.modal-card textarea {
+  min-height: 88px;
+}
+
+.builder-customization input[type='color'] {
+  width: 100%;
+  min-height: 38px;
+  padding: 4px;
+}
+
+.field-hint {
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 400;
+}
+
+.custom-section-add,
+.custom-entry-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: 12px;
+}
+
+.custom-section-add .button {
+  min-height: 38px;
+}
+
+.custom-section-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.custom-section-editor {
+  display: grid;
+  gap: 12px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.custom-section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.custom-entry-form .field-wide {
+  grid-column: 1 / -1;
+}
+
+.field-validation-error {
+  margin-top: 12px;
+}
+
 .content-item {
   padding: 10px 11px;
   border: 1px solid rgba(151, 177, 205, .1);
@@ -1376,11 +1455,18 @@ input[type='checkbox'] {
     grid-template-columns: 1fr;
   }
   .form-grid,
+  .custom-section-add,
+  .custom-entry-form,
   .suggestion-text {
     grid-template-columns: 1fr;
   }
-  .field-wide {
+  .field-wide,
+  .custom-entry-form .field-wide {
     grid-column: auto;
+  }
+  .custom-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
   }
   .panel {
     padding: 14px;

@@ -7,6 +7,48 @@ export type SectionType =
   | 'project'
   | 'certification'
   | 'achievement'
+export type CustomResumeSectionType =
+  | 'language'
+  | 'volunteer'
+  | 'publication'
+  | 'course'
+  | 'interest'
+  | 'reference'
+  | 'custom'
+
+export interface CustomResumeEntry {
+  title: string
+  subtitle: string | null
+  date: string | null
+  location: string | null
+  url: string | null
+  description: string | null
+}
+
+export interface CustomResumeSection {
+  id: string
+  section_type: CustomResumeSectionType
+  title: string
+  entries: CustomResumeEntry[]
+}
+
+export interface ResumeDesignSettings {
+  layout: 'single-column' | 'two-column'
+  font_family: 'Arial' | 'Georgia' | 'Inter' | 'Tahoma'
+  font_size: number
+  spacing: 'compact' | 'comfortable' | 'spacious'
+  accent_color: string
+  page_size: 'A4' | 'Letter'
+}
+
+export const defaultResumeDesign: ResumeDesignSettings = {
+  layout: 'single-column',
+  font_family: 'Arial',
+  font_size: 12,
+  spacing: 'comfortable',
+  accent_color: '#2878B5',
+  page_size: 'A4',
+}
 
 export interface CareerProfile {
   id: string
@@ -33,6 +75,9 @@ export interface Resume {
   template_name: ResumeTemplate
   is_primary: boolean
   source_filename?: string | null
+  custom_sections: CustomResumeSection[]
+  design_settings: ResumeDesignSettings
+  section_order: SectionType[]
   created_at: string
   updated_at: string
 }
@@ -52,7 +97,7 @@ export type ResumeCreate = Pick<Resume, 'title'> & {
   is_primary?: boolean
 }
 export type ResumeUpdate = Partial<
-  Pick<Resume, 'title' | 'target_role' | 'template_name' | 'is_primary'>
+  Pick<Resume, 'title' | 'target_role' | 'template_name' | 'is_primary' | 'custom_sections' | 'design_settings' | 'section_order'>
 >
 
 export interface ResumeEntity {

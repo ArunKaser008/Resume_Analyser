@@ -179,6 +179,8 @@ export default function OptimizationPage({ mode, resumes, initialResumeId, onRes
     try {
       const result = await finalizeResumeChanges(resumeId, action)
       setResumeId(result.resume.id)
+      setSelected(null)
+      setTailoring(null)
       await onResumeImported?.(result.resume)
       await loadResumeData(result.resume.id)
       setNotice(action === 'save_copy'
