@@ -15,8 +15,10 @@ from app.api.v1.certifications import router as certifications_router
 from app.api.v1.achievements import router as achievements_router
 from app.api.v1.resume_sections import router as resume_sections_router
 from app.api.v1.resume_preview import router as resume_preview_router
-
-
+from app.api.v1.resume_analysis import router as resume_analysis_router
+from app.api.v1.resume_optimization import (
+    router as resume_optimization_router,
+)
 
 
 app = FastAPI(
@@ -34,11 +36,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(
-    career_profiles_router,
-    prefix="/api/v1",
-)
-
+app.include_router(career_profiles_router,prefix="/api/v1",)
 app.include_router(resumes_router, prefix="/api/v1")
 app.include_router(educations_router, prefix="/api/v1")
 app.include_router(work_experiences_router, prefix="/api/v1")
@@ -48,6 +46,8 @@ app.include_router(certifications_router, prefix="/api/v1")
 app.include_router(achievements_router, prefix="/api/v1")
 app.include_router(resume_sections_router, prefix="/api/v1")
 app.include_router(resume_preview_router, prefix="/api/v1")
+app.include_router(resume_analysis_router, prefix="/api/v1")
+app.include_router(resume_optimization_router,prefix="/api/v1",)
 
 @app.get("/")
 def root():
