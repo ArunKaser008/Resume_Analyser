@@ -10,19 +10,19 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  --page-bg: #080e1b;
-  --sidebar-bg: #090f1d;
-  --panel-bg: #101a2b;
-  --panel-bg-soft: #121f32;
-  --border: rgba(154, 180, 211, 0.13);
-  --text-primary: #f2f6fc;
-  --text-secondary: #a3b0c3;
-  --text-muted: #718198;
-  --cyan: #00b3ac;
-  --blue: #1889a2;
-  --green: #e8ba3b;
-  --purple: #67c8c0;
-  --gradient: linear-gradient(105deg, #00a7a2 0%, #20bcb0 58%, #e8ba3b 100%);
+  --page-bg: #071323;
+  --sidebar-bg: #091829;
+  --panel-bg: #101f32;
+  --panel-bg-soft: #14263a;
+  --border: rgba(157, 190, 219, 0.15);
+  --text-primary: #f6f9ff;
+  --text-secondary: #b2bfd0;
+  --text-muted: #8496ac;
+  --cyan: #1ec9d6;
+  --blue: #168db5;
+  --green: #39d3a1;
+  --purple: #8e83ff;
+  --gradient: linear-gradient(105deg, #148bb2 0%, #19bed0 48%, #36c99a 78%, #e0c43a 100%);
 }
 
 * {

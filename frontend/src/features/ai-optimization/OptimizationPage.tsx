@@ -11,8 +11,8 @@ import {
   setSuggestionDecision,
   tailorResume,
 } from '../../api/optimization'
-import type { OptimizationSession, ProfileType, Resume, ResumeContentOverride, ResumeOptimization, TailoringResult } from '../../api/types'
-import { finalizeResumeChanges, importResume } from '../../api/resumes'
+import type { OptimizationSession, Resume, ResumeContentOverride, ResumeOptimization, TailoringResult } from '../../api/types'
+import { finalizeResumeChanges } from '../../api/resumes'
 
 const applyFields = new Set(['summary', 'description', 'responsibilities', 'achievements', 'source_text'])
 
@@ -24,11 +24,7 @@ export default function OptimizationPage({ mode, resumes, initialResumeId, onRes
   onPreview: (resume: Resume) => void
   onRecheck?: (resumeId: string) => void
 }) {
-  const [resumeId, setResumeId] = useState(initialResumeId || resumes[0]?.id || '')
-  const [source, setSource] = useState<'upload' | 'saved'>(initialResumeId ? 'saved' : 'upload')
-  const [file, setFile] = useState<File | null>(null)
-  const [profileType, setProfileType] = useState<ProfileType>('experienced')
-  const [targetRole, setTargetRole] = useState('')
+  const [resumeId, setResumeId] = useState(initialResumeId || (mode === 'optimization' ? resumes[0]?.id || '' : ''))
   const [jobDescription, setJobDescription] = useState('')
   const [sessions, setSessions] = useState<OptimizationSession[]>([])
   const [selected, setSelected] = useState<OptimizationSession | null>(null)
@@ -76,11 +72,7 @@ export default function OptimizationPage({ mode, resumes, initialResumeId, onRes
 
   const validate = () => {
     if (mode === 'optimization' && !resumeId) { setError('Select a resume before continuing.'); return false }
-    if (mode === 'tailoring' && source === 'saved' && !resumeId) { setError('Select a resume before continuing.'); return false }
-    if (mode === 'tailoring' && source === 'upload' && !file) {
-      setError('Upload a PDF, DOCX, or TXT resume.')
-      return false
-    }
+    if (mode === 'tailoring' && !resumeId) { setError('Select a resume before continuing.'); return false }
     if (jobDescription.trim().length < 100 || jobDescription.length > 20000) {
       setError('Job description must be between 100 and 20,000 characters.')
       return false
@@ -95,27 +87,18 @@ export default function OptimizationPage({ mode, resumes, initialResumeId, onRes
     if (!validate()) return
     setBusy(true)
     try {
-      let activeResumeId = resumeId
-      if (action === 'tailor' && source === 'upload' && file) {
-        const imported = await importResume(file, profileType, targetRole)
-        activeResumeId = imported.resume.id
-        setResumeId(activeResumeId)
-        setSource('saved')
-        setFile(null)
-        await onResumeImported?.(imported.resume)
-      }
       if (action === 'session') {
-        const session = await createOptimizationSession(activeResumeId, jobDescription.trim())
+        const session = await createOptimizationSession(resumeId, jobDescription.trim())
         setSelected(session)
-        await loadResumeData(activeResumeId)
+        await loadResumeData(resumeId)
         setSelected(session)
         setNotice('Optimization session created. Review each suggestion before applying it.')
       } else if (action === 'optimize') {
-        setOptimization(await optimizeResume(activeResumeId, jobDescription.trim()))
+        setOptimization(await optimizeResume(resumeId, jobDescription.trim()))
       } else {
-        const result = await tailorResume(activeResumeId, jobDescription.trim())
+        const result = await tailorResume(resumeId, jobDescription.trim())
         setTailoring(result)
-        await loadResumeData(activeResumeId)
+        await loadResumeData(resumeId)
         const session = await getOptimizationSession(result.optimization_session.id)
         setSelected(session)
         setNotice('Tailoring analysis completed. Suggestions are saved for your review.')
@@ -196,9 +179,12 @@ export default function OptimizationPage({ mode, resumes, initialResumeId, onRes
   return <div className="feature-page">
     <div className="page-heading"><div><div className="eyebrow">AI-ASSISTED IMPROVEMENT</div><h1>{mode === 'optimization' ? 'Optimize your resume' : 'Tailor your resume'}</h1><p>{mode === 'optimization' ? 'Get job-specific feedback, review every suggestion, and decide what to apply.' : 'Generate a job-specific fit analysis and review suggestions without overwriting your original resume.'}</p></div></div>
     <section className="panel analysis-form">
-      {mode === 'tailoring' && <div className="source-switch" role="group" aria-label="Resume source"><button type="button" className={`button ${source === 'upload' ? 'button-primary' : 'button-secondary'}`} onClick={() => setSource('upload')}>Upload resume</button><button type="button" className={`button ${source === 'saved' ? 'button-primary' : 'button-secondary'}`} onClick={() => setSource('saved')}>Choose saved resume</button></div>}
-      {mode === 'tailoring' && source === 'upload' && <div className="form-grid"><label>Existing resume *<input type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" required onChange={(event) => setFile(event.target.files?.[0] || null)} /><small className="muted">PDF, DOCX, or TXT · 10 MB maximum. Scanned image-only PDFs are not supported.</small></label><label>Candidate type<select value={profileType} onChange={(event) => { const type = event.target.value as ProfileType; setProfileType(type); if (type === 'student') setTargetRole('') }}><option value="student">Student</option><option value="fresher">Fresher</option><option value="experienced">Experienced</option></select></label>{profileType !== 'student' && <label>Target role <span className="muted">(optional)</span><input maxLength={200} value={targetRole} onChange={(event) => setTargetRole(event.target.value)} /></label>}</div>}
-      {(mode === 'optimization' || source === 'saved') && <label>Resume<select value={resumeId} onChange={(event) => { setResumeId(event.target.value); setSelected(null); setError('') }}><option value="">Select a resume</option>{resumes.map((resume) => <option key={resume.id} value={resume.id}>{resume.title}</option>)}</select></label>}
+      {mode === 'optimization' && <label>Resume<select value={resumeId} onChange={(event) => { setResumeId(event.target.value); setSelected(null); setError('') }}><option value="">Select a resume</option>{resumes.map((resume) => <option key={resume.id} value={resume.id}>{resume.title}</option>)}</select></label>}
+      {mode === 'tailoring' && (activeResume
+        ? <p className="muted">Using current workspace resume: <strong>{activeResume.title}</strong></p>
+        : resumes.length > 0
+          ? <label>Select a resume to continue<select value={resumeId} onChange={(event) => { setResumeId(event.target.value); setSelected(null); setError('') }}><option value="">Select a resume</option>{resumes.map((resume) => <option key={resume.id} value={resume.id}>{resume.title}</option>)}</select></label>
+          : <p className="muted">Create a resume in Resume Builder before tailoring it to a job description.</p>)}
       <label>Target job description <span className="muted">(100–20,000 characters)</span><textarea rows={7} minLength={100} maxLength={20000} value={jobDescription} onChange={(event) => setJobDescription(event.target.value)} placeholder="Paste the job description to receive tailored suggestions…" /></label>
       <div className="form-footer"><span className="character-count">{jobDescription.length.toLocaleString()} / 20,000</span><div className="button-row">{mode === 'optimization' ? <><button className="button button-secondary" disabled={busy || jobDescription.trim().length < 100} onClick={() => void run('optimize')}>Generate recommendations</button><button className="button button-primary" disabled={busy || jobDescription.trim().length < 100} onClick={() => void run('session')}>{busy ? 'Working…' : 'Create review session'}</button></> : <button className="button button-primary" disabled={busy || jobDescription.trim().length < 100} onClick={() => void run('tailor')}>{busy ? 'Tailoring…' : 'Tailor & analyze'}</button>}</div></div>
     </section>

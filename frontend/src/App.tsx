@@ -37,7 +37,6 @@ function App() {
   const [analysisResumeId, setAnalysisResumeId] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const refreshWorkspace = useCallback(async () => {
     setError('')
@@ -74,7 +73,6 @@ function App() {
 
   const navigate = (next: Page) => {
     setPage(next)
-    setMobileMenuOpen(false)
     if (window.location.hash !== `#${next}`) window.history.pushState(null, '', `#${next}`)
     setError('')
   }
@@ -118,31 +116,23 @@ function App() {
 
   const isResumeBuilderFlow = page === 'builder' || page === 'builder-edit'
 
-  return <div className={`app-shell ${isResumeBuilderFlow ? 'app-shell-builder' : ''}`}>
-    {mobileMenuOpen && <button className="mobile-backdrop" aria-label="Close navigation" onClick={() => setMobileMenuOpen(false)} />}
-    <aside className={`sidebar ${mobileMenuOpen ? 'sidebar-open' : ''}`}>
-      <a className="brand" href="#ats" onClick={(event) => { event.preventDefault(); navigateFeature('ats') }}>
-        <img className="brand-image" src={mentorMuniLogo} alt="" /><span><strong>MentorMuni</strong><small>RESUME WORKSPACE</small></span>
+  return <>
+    <header className="site-header">
+      <a className="site-brand" href="#ats" onClick={(event) => { event.preventDefault(); navigateFeature('ats') }}>
+        <img src={mentorMuniLogo} alt="" /><span>Mentor<strong>Muni</strong></span>
       </a>
-      <div className="nav-group">
-        <div className="nav-label">FEATURES</div>
-        <nav>{navigation.map((entry) =>
-          <button key={entry.id} className={`nav-item ${activeFeature === entry.id ? 'active' : ''}`} onClick={() => navigateFeature(entry.id)} aria-current={activeFeature === entry.id ? 'page' : undefined}>
-            <span className="nav-icon">{entry.icon}</span><span>{entry.label}</span>{activeFeature === entry.id && <i />}
-          </button>)}</nav>
-      </div>
-      <div className="sidebar-bottom">
-        <div className="sidebar-tip"><span>✦</span><strong>Make every application count.</strong><p>Build, analyse, and tailor your resume.</p></div>
-        <div className="workspace-user"><span className="avatar">M</span><span><strong>My workspace</strong><small>Resume tools</small></span></div>
-      </div>
-    </aside>
+      <nav className="site-nav" aria-label="Main navigation">
+        {navigation.map((entry) => <button key={entry.id} type="button" className={activeFeature === entry.id ? 'active' : ''} onClick={() => navigateFeature(entry.id)} aria-current={activeFeature === entry.id ? 'page' : undefined}>{entry.label}</button>)}
+      </nav>
+    </header>
+    <div className={`app-shell ${isResumeBuilderFlow ? 'app-shell-builder' : ''}`}>
     <main className="main-area">
-      <header className="topbar"><button className="mobile-menu-button" onClick={() => setMobileMenuOpen(true)} aria-label="Open navigation">☰</button><div className="breadcrumb"><span>Features</span><span>/</span><strong>{title}</strong></div><div className="topbar-right"><span className="workspace-badge">RESUME WORKSPACE</span><span className="avatar top-avatar">M</span></div></header>
+      <header className="topbar"><div className="breadcrumb"><span>Features</span><span>/</span><strong>{title}</strong></div><div className="topbar-right"><span className="workspace-badge">RESUME WORKSPACE</span><span className="avatar top-avatar">M</span></div></header>
       <div className="page-content">
         {error && <div className="notice notice-error global-notice" role="alert"><span>{error}</span><button className="text-button" onClick={() => void refreshWorkspace().catch((cause: unknown) => setError(getErrorMessage(cause)))}>Retry</button></div>}
         {loading ? <div className="panel empty-state loading-panel"><span className="spinner" /><p>Loading resumes…</p></div> : <>
           {page === 'ats' && <AnalysisPage key={analysisResumeId || 'upload'} resumes={resumes} initialResumeId={analysisResumeId || undefined} onResumeImported={handleResumeImported} onResumeFinalized={handleResumeImported} />}
-          {page === 'builder' && <ResumeLibraryPage resumes={resumes} onChanged={refreshWorkspace} onBuild={openBuilder} onPreview={openPreview} onHome={() => navigateFeature('ats')} />}
+          {page === 'builder' && <ResumeLibraryPage resumes={resumes} onChanged={refreshWorkspace} onBuild={openBuilder} onPreview={openPreview} />}
           {page === 'builder-edit' && (selectedResume && selectedProfile
             ? <ResumeBuilderPage resume={selectedResume} profile={selectedProfile} onPreview={() => openPreview(selectedResume)} onResumeUpdated={(resume) => { setSelectedResume(resume); setResumes((current) => current.map((item) => item.id === resume.id ? resume : item)) }} onProfileChanged={(profile) => setProfiles((current) => current.map((item) => item.id === profile.id ? profile : item))} onResumeChanged={(resume) => { setSelectedResume(resume); navigate('builder') }} />
             : <SelectionEmpty title="Select a resume to edit" description="Choose a resume in the builder to add and organize sections." onClick={() => navigate('builder')} button="Open resume builder" />)}
@@ -150,12 +140,13 @@ function App() {
             ? <ResumePreviewPage resume={selectedResume} onResumeChanged={(resume) => { setSelectedResume(resume); setResumes((current) => current.map((item) => item.id === resume.id ? resume : item)) }} onBack={() => navigate('builder-edit')} />
             : <SelectionEmpty title="Select a resume to preview" description="Choose a resume in the builder to preview or download it." onClick={() => navigate('builder')} button="Open resume builder" />)}
           {page === 'optimization' && <OptimizationPage key="optimization" mode="optimization" resumes={resumes} initialResumeId={selectedResume?.id} onResumeImported={handleResumeImported} onPreview={openPreview} onRecheck={openAnalyzer} />}
-          {page === 'tailoring' && <OptimizationPage key="tailoring" mode="tailoring" resumes={resumes} onResumeImported={handleResumeImported} onPreview={openPreview} onRecheck={openAnalyzer} />}
+          {page === 'tailoring' && <OptimizationPage key="tailoring" mode="tailoring" resumes={resumes} initialResumeId={selectedResume?.id} onResumeImported={handleResumeImported} onPreview={openPreview} onRecheck={openAnalyzer} />}
         </>}
         <footer className="page-footer"><span>MentorMuni Resume Workspace</span><span>Analyse · Build · Tailor</span></footer>
       </div>
     </main>
-  </div>
+    </div>
+  </>
 }
 
 function SelectionEmpty({ title, description, button, onClick }: { title: string; description: string; button: string; onClick: () => void }) {

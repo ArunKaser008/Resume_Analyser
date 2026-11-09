@@ -33,7 +33,6 @@ export default function AnalysisPage({ resumes, initialResumeId, onResumeImporte
   const [file, setFile] = useState<File | null>(null)
   const [profileType, setProfileType] = useState<ProfileType>('experienced')
   const [targetRole, setTargetRole] = useState('')
-  const [description, setDescription] = useState('')
   const [analyzedResumeId, setAnalyzedResumeId] = useState(initialResumeId || '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -75,7 +74,7 @@ export default function AnalysisPage({ resumes, initialResumeId, onResumeImporte
         setFile(null)
         await onResumeImported?.(imported.resume)
       }
-      const result = await analyzeResume(activeResumeId, description.trim() || undefined, true)
+      const result = await analyzeResume(activeResumeId, undefined, true)
       setAnalysis(result)
       setDraftOverrides((await getContentOverrides(activeResumeId)).filter((item) => item.is_draft))
     } catch (cause) {
@@ -92,7 +91,7 @@ export default function AnalysisPage({ resumes, initialResumeId, onResumeImporte
     try {
       const created = await createOptimizationSession(
         analyzedResumeId,
-        description.trim().length >= 100 ? description.trim() : undefined,
+        undefined,
         weakness,
       )
       setSession(created)
@@ -154,7 +153,7 @@ export default function AnalysisPage({ resumes, initialResumeId, onResumeImporte
       setDraftOverrides([])
       setSession(null)
       await onResumeFinalized?.(result.resume)
-      setAnalysis(await analyzeResume(result.resume.id, description.trim() || undefined))
+      setAnalysis(await analyzeResume(result.resume.id))
       setNotice(action === 'save_copy'
         ? `Saved as ${result.resume.title}. The original resume was left unchanged.`
         : 'Changes saved to the existing resume.')
@@ -195,8 +194,7 @@ export default function AnalysisPage({ resumes, initialResumeId, onResumeImporte
         <label>Candidate type<select value={profileType} onChange={(event) => { const type = event.target.value as ProfileType; setProfileType(type); if (type === 'student') setTargetRole('') }}><option value="student">Student</option><option value="fresher">Fresher</option><option value="experienced">Experienced</option></select></label>
         {profileType !== 'student' && <label>Target role <span className="muted">(optional)</span><input maxLength={200} value={targetRole} onChange={(event) => setTargetRole(event.target.value)} placeholder="e.g. Product Designer" /></label>}
       </div>
-      <label>Job description <span className="muted">(optional; improves role-specific scoring)</span><textarea rows={7} maxLength={20000} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Paste a job description for role-specific results, or leave blank for a baseline score…" /></label>
-      <div className="form-footer"><span className="character-count">{description.length.toLocaleString()} / 20,000</span><button className="button button-primary" disabled={loading || !file}>{loading ? 'Analyzing…' : 'Analyze resume'}</button></div>
+      <div className="form-footer"><span className="muted">Upload a resume for a baseline ATS readiness check.</span><button className="button button-primary" disabled={loading || !file}>{loading ? 'Analyzing…' : 'Analyze resume'}</button></div>
     </form>}
     {initialResumeId && <section className="panel analysis-form"><p>Rechecking the selected resume, including any unsaved draft changes.</p><button className="button button-primary" disabled={loading} onClick={() => void analyze()}>{loading ? 'Analyzing…' : 'Recheck ATS score'}</button></section>}
     {error && <div className="notice notice-error" role="alert">{error}</div>}
