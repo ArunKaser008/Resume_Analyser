@@ -1,5 +1,5 @@
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap');
 
 :root {
   font-family: 'DM Sans', sans-serif;
@@ -18,11 +18,11 @@
   --text-primary: #f2f6fc;
   --text-secondary: #a3b0c3;
   --text-muted: #718198;
-  --cyan: #16c5d5;
-  --blue: #159cda;
-  --green: #2bd3a5;
-  --purple: #a68aff;
-  --gradient: linear-gradient(105deg, #11b9db 0%, #28d1ad 55%, #b4d94a 100%);
+  --cyan: #00b3ac;
+  --blue: #1889a2;
+  --green: #e8ba3b;
+  --purple: #67c8c0;
+  --gradient: linear-gradient(105deg, #00a7a2 0%, #20bcb0 58%, #e8ba3b 100%);
 }
 
 * {
@@ -45,6 +45,14 @@ body,
 button,
 input {
   font-family: 'DM Sans', sans-serif;
+}
+
+body,
+button,
+input,
+textarea,
+select {
+  font-family: 'Manrope', sans-serif;
 }
 
 button,

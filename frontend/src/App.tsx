@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import './App.css'
+import mentorMuniLogo from './assets/mentormuni-logo.png'
 import { ApiError } from './api/client'
 import { getCareerProfiles } from './api/careerProfiles'
 import { getResumes } from './api/resumes'
@@ -115,11 +116,13 @@ function App() {
         ? 'tailoring'
         : page
 
-  return <div className="app-shell">
+  const isResumeBuilderFlow = page === 'builder' || page === 'builder-edit'
+
+  return <div className={`app-shell ${isResumeBuilderFlow ? 'app-shell-builder' : ''}`}>
     {mobileMenuOpen && <button className="mobile-backdrop" aria-label="Close navigation" onClick={() => setMobileMenuOpen(false)} />}
     <aside className={`sidebar ${mobileMenuOpen ? 'sidebar-open' : ''}`}>
       <a className="brand" href="#ats" onClick={(event) => { event.preventDefault(); navigateFeature('ats') }}>
-        <span className="brand-mark">M</span><span><strong>MentorMuni</strong><small>RESUME WORKSPACE</small></span>
+        <img className="brand-image" src={mentorMuniLogo} alt="" /><span><strong>MentorMuni</strong><small>RESUME WORKSPACE</small></span>
       </a>
       <div className="nav-group">
         <div className="nav-label">FEATURES</div>

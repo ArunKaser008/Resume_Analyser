@@ -1,7 +1,7 @@
 
 import logging
 
-from fastapi import FastAPI, status
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
@@ -50,6 +50,28 @@ app = FastAPI(
     ),
     version="1.0.0",
 )
+
+
+@app.exception_handler(SQLAlchemyError)
+async def handle_database_error(
+    request: Request,
+    exc: SQLAlchemyError,
+) -> JSONResponse:
+    logger.exception(
+        "Database request failed for %s %s",
+        request.method,
+        request.url.path,
+        exc_info=exc,
+    )
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={
+            "detail": (
+                "The database is unavailable. Verify PostgreSQL is running "
+                "and the backend database settings are correct."
+            )
+        },
+    )
 
 
 # CORS configuration

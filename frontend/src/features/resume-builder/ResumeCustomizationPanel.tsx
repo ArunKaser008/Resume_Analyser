@@ -12,6 +12,7 @@ import type {
   ResumeTemplate,
 } from '../../api/types'
 import { defaultResumeDesign } from '../../api/types'
+import { resumeTemplates } from './resumeTemplates'
 
 const sectionTypes: { value: CustomResumeSectionType; label: string }[] = [
   { value: 'language', label: 'Languages' },
@@ -171,7 +172,7 @@ export default function ResumeCustomizationPanel({
     <section className="panel builder-section">
       <div className="panel-title"><div><span className="eyebrow">DESIGN</span><h2>Layout and styling</h2><p>Customize the page while keeping content readable and ATS-friendly.</p></div></div>
       <div className="form-grid design-grid">
-        <label>Template<select value={template} onChange={(event) => void saveResumeFields(design, customSections, 'Template updated.', event.target.value as ResumeTemplate)}><option value="modern">Modern</option><option value="professional">Professional</option><option value="minimal">Minimal</option></select></label>
+        <label>Template<select value={template} onChange={(event) => void saveResumeFields(design, customSections, 'Template updated.', event.target.value as ResumeTemplate)}>{resumeTemplates.map((option) => <option value={option.id} key={option.id}>{option.name}</option>)}</select></label>
         <label>Layout<select value={design.layout} onChange={(event) => setDesign({ ...design, layout: event.target.value as ResumeDesignSettings['layout'] })}><option value="single-column">Single column</option><option value="two-column">Two columns</option></select></label>
         <label>Font<select value={design.font_family} onChange={(event) => setDesign({ ...design, font_family: event.target.value as ResumeDesignSettings['font_family'] })}><option>Arial</option><option>Georgia</option><option>Inter</option><option>Tahoma</option></select></label>
         <label>Font size<select value={design.font_size} onChange={(event) => setDesign({ ...design, font_size: Number(event.target.value) })}>{[10, 11, 12, 13, 14].map((size) => <option key={size} value={size}>{size} px</option>)}</select></label>

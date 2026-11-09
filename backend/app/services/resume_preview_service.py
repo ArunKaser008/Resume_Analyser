@@ -13,6 +13,7 @@ from app.repositories.resume_preview_repository import (
     SECTION_MODELS,
 )
 from app.schemas.resume import ResumeDesignSettings
+from app.schemas.resume_template import AVAILABLE_TEMPLATES
 
 
 TEMPLATE_DIR = Path(__file__).resolve().parents[1] / "templates"
@@ -22,11 +23,7 @@ jinja_env = Environment(
     autoescape=select_autoescape(["html", "xml"]),
 )
 
-AVAILABLE_TEMPLATES = {
-    "modern",
-    "professional",
-    "minimal",
-}
+BASE_TEMPLATES = {"modern", "professional", "minimal"}
 DEFAULT_SECTION_ORDER = [
     "work_experience",
     "technical_skill",
@@ -120,9 +117,8 @@ class ResumePreviewService:
             )
         )
 
-        template = jinja_env.get_template(
-            f"resumes/{template_name}.html"
-        )
+        base_template = template_name if template_name in BASE_TEMPLATES else "modern"
+        template = jinja_env.get_template(f"resumes/{base_template}.html")
         section_order = resume.section_order or DEFAULT_SECTION_ORDER
         section_positions = {
             section_type: 3 + section_order.index(section_type)

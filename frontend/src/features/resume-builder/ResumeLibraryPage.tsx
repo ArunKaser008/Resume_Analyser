@@ -1,7 +1,9 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { ApiError } from '../../api/client'
-import { createResume, deleteResume, updateResume } from '../../api/resumes'
-import type { Resume, ResumeTemplate } from '../../api/types'
+import { createResume, deleteResume, importResume, updateResume } from '../../api/resumes'
+import type { ProfileType, Resume } from '../../api/types'
+import mentorMuniLogo from '../../assets/mentormuni-logo.png'
+import { getTemplateName, resumeTemplates, type ResumeTemplateCategory, type ResumeTemplateOption } from './resumeTemplates'
 
 interface Props {
   resumes: Resume[]
@@ -11,57 +13,63 @@ interface Props {
 }
 
 export default function ResumeLibraryPage({ resumes, onChanged, onBuild, onPreview }: Props) {
-  const [editing, setEditing] = useState<Resume | 'new' | null>(null)
+  const [selectedTemplate, setSelectedTemplate] = useState<ResumeTemplateOption | null>(null)
+  const [startStep, setStartStep] = useState<'choose' | 'blank' | null>(null)
+  const [showResumes, setShowResumes] = useState(false)
+  const [filter, setFilter] = useState<'all' | ResumeTemplateCategory>('all')
   const [fullName, setFullName] = useState('')
-  const [title, setTitle] = useState('')
+  const [title, setTitle] = useState('My Resume')
   const [targetRole, setTargetRole] = useState('')
-  const [template, setTemplate] = useState<ResumeTemplate>('modern')
-  const [primary, setPrimary] = useState(false)
-  const [search, setSearch] = useState('')
-  const [saving, setSaving] = useState(false)
+  const [profileType, setProfileType] = useState<ProfileType>('experienced')
+  const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const fileInput = useRef<HTMLInputElement>(null)
 
-  const start = (resume?: Resume) => {
+  const closeModals = () => {
+    setSelectedTemplate(null)
+    setStartStep(null)
     setError('')
-    setEditing(resume || 'new')
-    setFullName('')
-    setTitle(resume?.title || '')
-    setTargetRole(resume?.target_role || '')
-    setTemplate(resume?.template_name || 'modern')
-    setPrimary(resume?.is_primary || false)
   }
 
-  const save = async (event: FormEvent) => {
+  const createBlankResume = async (event: FormEvent) => {
     event.preventDefault()
-    if (title.trim().length < 2 || (editing === 'new' && fullName.trim().length < 2)) {
-      setError(editing === 'new' ? 'Enter your name and a resume title (at least two characters each).' : 'Enter a resume title with at least two characters.')
-      return
-    }
-    setSaving(true)
+    if (!selectedTemplate) return
+    setBusy(true)
     setError('')
     try {
-      if (editing === 'new') {
-        await createResume({
-          full_name: fullName.trim(),
-          title: title.trim(),
-          target_role: targetRole.trim() || undefined,
-          template_name: template,
-          is_primary: primary,
-        })
-      } else if (editing) {
-        await updateResume(editing.id, {
-          title: title.trim(),
-          target_role: targetRole.trim() || null,
-          template_name: template,
-          is_primary: primary,
-        })
-      }
+      const resume = await createResume({
+        full_name: fullName.trim(),
+        title: title.trim(),
+        target_role: targetRole.trim() || undefined,
+        profile_type: profileType,
+        template_name: selectedTemplate.id,
+      })
       await onChanged()
-      setEditing(null)
+      closeModals()
+      onBuild(resume)
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : 'Unable to save this resume.')
+      setError(cause instanceof ApiError ? cause.message : 'Unable to create this resume.')
     } finally {
-      setSaving(false)
+      setBusy(false)
+    }
+  }
+
+  const importFile = async (file?: File) => {
+    if (!file) return
+    const template = selectedTemplate || resumeTemplates[0]
+    setBusy(true)
+    setError('')
+    try {
+      const imported = await importResume(file, profileType, targetRole)
+      const resume = await updateResume(imported.resume.id, { template_name: template.id })
+      await onChanged()
+      closeModals()
+      onBuild(resume)
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : 'Unable to import this resume.')
+    } finally {
+      setBusy(false)
+      if (fileInput.current) fileInput.current.value = ''
     }
   }
 
@@ -76,32 +84,136 @@ export default function ResumeLibraryPage({ resumes, onChanged, onBuild, onPrevi
     }
   }
 
-  const query = search.trim().toLowerCase()
-  const filtered = resumes.filter((resume) =>
-    `${resume.title} ${resume.target_role || ''} ${resume.template_name}`.toLowerCase().includes(query),
-  )
+  const filteredTemplates = resumeTemplates.filter((template) => filter === 'all' || template.category === filter)
 
-  return <div className="feature-page">
-    <div className="page-heading"><div><div className="eyebrow">FEATURE 02</div><h1>Resume builder</h1><p>Start from scratch, add the sections you need, then preview and download your resume.</p></div><button className="button button-primary" onClick={() => start()}>＋ Create resume</button></div>
-    {error && <div className="notice notice-error" role="alert">{error}</div>}
-    <div className="toolbar"><label className="search-field"><span>⌕</span><input aria-label="Search resumes" placeholder="Search title, role, or template" value={search} onChange={(event) => setSearch(event.target.value)} /></label><span className="muted">{filtered.length} of {resumes.length} resumes</span></div>
-    {editing && <form className="panel form-panel" onSubmit={(event) => void save(event)}>
-      <div className="panel-title"><div><h2>{editing === 'new' ? 'Create resume' : 'Edit resume details'}</h2><p>{editing === 'new' ? 'Your name is used as the heading in the exported resume.' : 'Update the title, target role, or template.'}</p></div><button type="button" className="icon-button" onClick={() => setEditing(null)} aria-label="Close form">×</button></div>
-      <div className="form-grid">
-        {editing === 'new' && <label>Your name *<input required minLength={2} maxLength={150} value={fullName} onChange={(event) => setFullName(event.target.value)} /></label>}
-        <label>Resume title *<input required minLength={2} maxLength={150} value={title} onChange={(event) => setTitle(event.target.value)} /></label>
-        <label>Target role<input maxLength={200} value={targetRole} onChange={(event) => setTargetRole(event.target.value)} /></label>
-        <label>Template<select value={template} onChange={(event) => setTemplate(event.target.value as ResumeTemplate)}><option value="modern">Modern</option><option value="professional">Professional</option><option value="minimal">Minimal</option></select></label>
-        <label className="check-label"><input type="checkbox" checked={primary} onChange={(event) => setPrimary(event.target.checked)} /> Set as primary resume</label>
+  return <div className="resume-flow">
+    <main className="resume-flow-main">
+      <header className="resume-gallery-topline">
+        <a className="resume-flow-brand" href="#builder" aria-label="Resume builder home">
+        <img className="resume-flow-logo" src={mentorMuniLogo} alt="" /><strong>MentorMuni</strong>
+        </a>
+        <div className="resume-gallery-utilities">
+          <button type="button" className="resume-flow-secondary" onClick={() => setShowResumes((visible) => !visible)}>{showResumes ? '← Templates' : `My resumes (${resumes.length})`}</button>
+          {!showResumes && <>
+            <button type="button" className="resume-import-top" onClick={() => { setSelectedTemplate(resumeTemplates[0]); fileInput.current?.click() }}>
+              <span>⇧</span> Import existing resume
+            </button>
+            <input ref={fileInput} className="resume-file-input" type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" onChange={(event) => void importFile(event.target.files?.[0])} />
+          </>}
+        </div>
+      </header>
+      <div className="resume-gallery-heading">
+        <div>
+          <h1>{showResumes ? 'Your resumes' : 'Start building your resume'}</h1>
+          <p>{showResumes ? 'Continue editing or preview a resume you have already created.' : 'Choose a design you like. You can customize or switch it later.'}</p>
+        </div>
       </div>
-      <div className="form-actions"><button type="button" className="button button-secondary" onClick={() => setEditing(null)}>Cancel</button><button className="button button-primary" disabled={saving}>{saving ? 'Saving…' : editing === 'new' ? 'Create resume' : 'Save changes'}</button></div>
-    </form>}
-    {filtered.length === 0 ? <div className="panel empty-state"><h2>{query ? 'No matching resumes' : 'No resumes yet'}</h2><p>{query ? 'Try another search.' : 'Create a resume to begin adding your sections.'}</p>{!query && <button className="button button-primary" onClick={() => start()}>Create your first resume</button>}</div> :
-      <div className="resume-grid">{filtered.map((resume) => <article className="panel resume-card" key={resume.id}>
-        <div className="resume-card-top"><span className="document-icon">CV</span><span className="tag">{resume.template_name}</span></div>
-        <h2>{resume.title}</h2><p>{resume.target_role || 'Target role not specified'}</p>
-        <div className="resume-meta">{resume.is_primary && <span className="status-pill">Primary</span>}<span>Updated {new Date(resume.updated_at).toLocaleDateString()}</span></div>
-        <div className="card-actions card-actions-wrap"><button className="button button-primary" onClick={() => onBuild(resume)}>Edit content</button><button className="button button-secondary" onClick={() => onPreview(resume)}>Preview / download</button><button className="button button-secondary" onClick={() => start(resume)}>Details</button><button className="button button-danger" onClick={() => void remove(resume)}>Delete</button></div>
-      </article>)}</div>}
+
+      {error && <div className="resume-flow-error" role="alert">{error}</div>}
+
+      {showResumes ? <section className="resume-existing-list">
+        <div className="resume-existing-toolbar">
+          <h2>{resumes.length} {resumes.length === 1 ? 'resume' : 'resumes'}</h2>
+          <button type="button" className="resume-flow-secondary" onClick={() => setShowResumes(false)}>← Choose a template</button>
+        </div>
+        {resumes.length === 0 ? <div className="resume-existing-empty">No resumes yet. Choose a template to get started.</div> :
+          resumes.map((resume) => <article className="resume-existing-row" key={resume.id}>
+            <div className="resume-mini-icon">CV</div>
+            <div className="resume-existing-copy"><strong>{resume.title}</strong><span>{resume.target_role || 'Target role not specified'} · Updated {new Date(resume.updated_at).toLocaleDateString()}</span></div>
+            <span className="resume-template-tag">{getTemplateName(resume.template_name)}</span>
+            <button type="button" className="resume-flow-secondary" onClick={() => onPreview(resume)}>Preview</button>
+            <button type="button" className="resume-flow-primary compact" onClick={() => onBuild(resume)}>Edit</button>
+            <button type="button" className="resume-remove-button" onClick={() => void remove(resume)} aria-label={`Delete ${resume.title}`}>×</button>
+          </article>)}
+      </section> : <>
+        <div className="resume-template-filters" role="group" aria-label="Filter templates">
+          {([
+            ['all', 'All templates'],
+            ['simple', 'Simple'],
+            ['modern', 'Modern'],
+            ['creative', 'Creative'],
+          ] as const).map(([value, label]) => <button key={value} type="button" className={filter === value ? 'selected' : ''} onClick={() => setFilter(value)}>{label}</button>)}
+        </div>
+        <section className="resume-template-grid" aria-label="Resume templates">
+          {filteredTemplates.map((template) => <button key={template.id} type="button" className={`resume-template-card ${template.id}`} onClick={() => setSelectedTemplate(template)} aria-label={`Preview ${template.name} template`}>
+            <TemplateMockup template={template} />
+            <span className="resume-template-name">{template.name}</span>
+          </button>)}
+        </section>
+      </>}
+    </main>
+
+    {selectedTemplate && !startStep && <div className="resume-flow-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) closeModals() }}>
+      <section className="resume-template-dialog" role="dialog" aria-modal="true" aria-labelledby="template-dialog-title">
+        <button type="button" className="resume-dialog-close" onClick={closeModals} aria-label="Close preview">×</button>
+        <div className="resume-dialog-preview"><TemplateMockup template={selectedTemplate} large /></div>
+        <div className="resume-dialog-copy">
+          <span className="resume-dialog-label">RESUME TEMPLATE</span>
+          <h2 id="template-dialog-title">{selectedTemplate.name}</h2>
+          <p>{selectedTemplate.description}</p>
+          <ul><li>A4 / US-Letter size</li><li>Editable text</li><li>Fully customizable</li><li>Print-ready format</li><li>Online resume with shareable link</li></ul>
+          <button type="button" className="resume-flow-primary" onClick={() => setStartStep('choose')}>Use this template</button>
+        </div>
+      </section>
+    </div>}
+
+    {selectedTemplate && startStep && <div className="resume-flow-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) closeModals() }}>
+      <section className="resume-start-dialog" role="dialog" aria-modal="true" aria-labelledby="resume-start-title">
+        <button type="button" className="resume-dialog-close" onClick={closeModals} aria-label="Close">×</button>
+        {startStep === 'choose' ? <>
+          <h2 id="resume-start-title">Import your existing resume</h2>
+          <p>Start faster by prefilling your resume content.</p>
+          <button type="button" className="resume-flow-primary resume-dialog-action" disabled={busy} onClick={() => fileInput.current?.click()}><span>🚀</span>{busy ? 'Importing resume…' : 'Import resume'}</button>
+          <button type="button" className="resume-flow-secondary resume-dialog-action" onClick={() => setStartStep('blank')}><span>✍️</span>Start from blank</button>
+        </> : <>
+          <h2 id="resume-start-title">Start with a blank resume</h2>
+          <p>Add your name and a title to create your first draft.</p>
+          <form className="resume-start-form" onSubmit={(event) => void createBlankResume(event)}>
+            <label>Your name *<input required minLength={2} maxLength={150} value={fullName} onChange={(event) => setFullName(event.target.value)} autoFocus /></label>
+            <label>Resume title *<input required minLength={2} maxLength={150} value={title} onChange={(event) => setTitle(event.target.value)} /></label>
+            <label>Target role<input maxLength={200} value={targetRole} onChange={(event) => setTargetRole(event.target.value)} /></label>
+            <label>Experience level<select value={profileType} onChange={(event) => setProfileType(event.target.value as ProfileType)}><option value="student">Student</option><option value="fresher">Fresher</option><option value="experienced">Experienced</option></select></label>
+            <div className="resume-start-actions"><button type="button" className="resume-flow-secondary" onClick={() => setStartStep('choose')}>Back</button><button type="submit" className="resume-flow-primary" disabled={busy}>{busy ? 'Creating…' : 'Create resume'}</button></div>
+          </form>
+        </>}
+        {error && <div className="resume-flow-error" role="alert">{error}</div>}
+      </section>
+    </div>}
   </div>
+}
+
+function TemplateMockup({ template, large = false }: { template: ResumeTemplateOption; large?: boolean }) {
+  const hasSidebar = template.id === 'atlantic-blue' || template.id === 'charcoal'
+  const hasHeaderBand = template.id === 'executive' || template.id === 'coral' || template.id === 'indigo'
+
+  return <span className={`resume-mockup ${template.id} ${large ? 'large' : ''}`} aria-hidden="true">
+    <span className="mockup-paper">
+      {hasHeaderBand && <span className="mockup-header-band" />}
+      {hasSidebar && <span className="mockup-sidebar">
+        <b>{template.id === 'charcoal' ? 'PROFILE' : 'CONTACT'}</b>
+        <i /><i /><i />
+        <b>EDUCATION</b>
+        <i /><i />
+        <b>SKILLS</b>
+        <i /><i /><i />
+      </span>}
+      <span className="mockup-main">
+        <span className="mockup-person">{template.id === 'executive' ? 'MAYA WILLIAMS' : template.id === 'elegant' ? 'Sofia Bennett' : 'Emily Carter'}</span>
+        <span className="mockup-role">{template.id === 'executive' ? 'SENIOR OPERATIONS LEADER' : template.id === 'charcoal' ? 'Product Designer' : 'Project Manager'}</span>
+        {template.id === 'mercury-flow' && <span className="mockup-profile-photo">EC</span>}
+        <span className="mockup-contact">✉ emily.carter@email.com　⌕ Toronto, Canada</span>
+        <span className="mockup-section-title">{template.id === 'elegant' ? 'PROFILE' : 'SUMMARY'}</span>
+        <span className="mockup-lines"><i /><i /><i /></span>
+        <span className="mockup-section-title">{template.id === 'executive' ? 'CAREER HIGHLIGHTS' : 'PROFESSIONAL EXPERIENCE'}</span>
+        <span className="mockup-entry"><b>Project Manager</b><i /><i /><i /></span>
+        <span className="mockup-entry"><b>Project Coordinator</b><i /><i /></span>
+        <span className="mockup-section-title">EDUCATION</span>
+        <span className="mockup-entry"><b>Bachelor of Commerce</b><i /><i /></span>
+        <span className="mockup-section-title">SKILLS</span>
+        <span className="mockup-lines"><i /><i /></span>
+        <span className="mockup-section-title">CERTIFICATES</span>
+        <span className="mockup-lines"><i /><i /></span>
+      </span>
+    </span>
+  </span>
 }

@@ -12,6 +12,7 @@ body {
     font: {{ design_settings.font_size }}px/1.6 {{ design_settings.font_family }}, sans-serif;
 }
 .resume {
+    --template-accent: {{ design_settings.accent_color }};
     display: flex;
     flex-direction: column;
     width: {% if design_settings.page_size == "Letter" %}8.5in{% else %}210mm{% endif %};
@@ -19,8 +20,74 @@ body {
     margin: 25px auto;
     padding: 18mm; background: white;
     box-shadow: 0 2px 14px #00000018;
-    border-top: 4px solid {{ design_settings.accent_color }};
+    border-top: 4px solid var(--template-accent);
 }
+.resume[data-template="classic-clear"] { border-top: 2px solid #d9e2e4; }
+.resume[data-template="atlantic-blue"] { border-top: 7px solid #164259; }
+.resume[data-template="mercury-flow"] { border-top: 4px solid #e8ba3b; }
+.resume[data-template="executive"] { border-top: 8px solid #173b4c; }
+.resume[data-template="elegant"] { font-family: Georgia, serif; border-top: 2px solid #c5a85b; }
+.resume[data-template="charcoal"] { border-top: 0; padding-top: 0; }
+.resume[data-template="coral"] { border-top: 5px solid #00a7a2; }
+.resume[data-template="emerald"] { border-top: 5px solid #278c7b; }
+.resume[data-template="indigo"] { border-top: 5px solid #345f76; }
+.resume[data-template="minimal"] { border-top: 1px solid #d5dadb; }
+.resume[data-template="professional"] { border-top: 6px solid #173b4c; }
+.resume[data-template="modern"] { border-top: 4px solid #00a7a2; }
+.resume[data-template="atlantic-blue"],
+.resume[data-template="charcoal"] {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr);
+    column-gap: 22px;
+    align-content: start;
+}
+.resume[data-template="executive"] { padding-top: 0; }
+.resume[data-template="executive"] .resume-header {
+    margin: 0 -18mm;
+    padding: 18mm;
+    background: #173847;
+    color: #fff;
+}
+.resume[data-template="executive"] .resume-header h1,
+.resume[data-template="executive"] .resume-header .professional-title,
+.resume[data-template="executive"] .resume-header .contact,
+.resume[data-template="executive"] .resume-header a { color: #fff; }
+.resume[data-template="coral"] .resume-header {
+    border-bottom: 3px solid #00a7a2;
+    text-align: left;
+}
+.resume[data-template="indigo"] .resume-header {
+    border-bottom: 3px solid #345f76;
+}
+.resume[data-template="atlantic-blue"] .resume-header,
+.resume[data-template="charcoal"] .resume-header,
+.resume[data-template="executive"] .resume-header { grid-column: 1 / -1; }
+.resume[data-template="classic-clear"] .resume-header,
+.resume[data-template="professional"] .resume-header { text-align: center; }
+.resume[data-template="atlantic-blue"] .resume-header { border-left: 5px solid #e8ba3b; padding-left: 14px; }
+.resume[data-template="mercury-flow"] .resume-header { text-align: left; }
+.resume[data-template="executive"] .resume-header { border-bottom: 2px solid #173b4c; padding-bottom: 22px; }
+.resume[data-template="elegant"] .resume-header { text-align: center; border-bottom: 1px solid #c5a85b; }
+.resume[data-template="charcoal"] .resume-header { margin: 0 -18mm; padding: 18mm; background: #203643; color: #fff; }
+.resume[data-template="charcoal"] .resume-header h1,
+.resume[data-template="charcoal"] .resume-header .professional-title,
+.resume[data-template="charcoal"] .resume-header .contact,
+.resume[data-template="charcoal"] .resume-header a { color: #fff; }
+.resume[data-template="coral"] .resume-header { border-bottom: 2px solid #00a7a2; }
+.resume[data-template="emerald"] .resume-header { border-bottom: 2px solid #278c7b; }
+.resume[data-template="indigo"] .resume-header { border-bottom: 2px solid #345f76; }
+.resume[data-template="minimal"] .resume-header { border-bottom: 1px solid #bbc3c6; }
+.resume[data-template="mercury-flow"] h2 { border-bottom-width: 2px; }
+.resume[data-template="executive"] h2 { border-bottom-width: 2px; letter-spacing: 1.5px; }
+.resume[data-template="elegant"] h2 { border-bottom-color: #c5a85b; font-family: Georgia, serif; }
+.resume[data-template="charcoal"] h2 { border-bottom-width: 2px; }
+.resume[data-template="coral"] h2 { border-bottom-width: 2px; }
+.resume[data-template="emerald"] h2 { border-left: 3px solid #278c7b; padding-left: 8px; }
+.resume[data-template="indigo"] h2 { border-bottom-width: 2px; letter-spacing: 1.8px; }
+.resume[data-template="minimal"] h2 { letter-spacing: .3px; }
+.resume[data-template="coral"] h2 { border-left: 3px solid #00a7a2; padding-left: 8px; }
+.resume[data-template="charcoal"] h2 { background: #eef1f2; padding: 5px 7px; }
+.resume[data-template="executive"] h1 { letter-spacing: 1.4px; text-transform: uppercase; }
 .resume[data-layout="two-column"] {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -32,13 +99,13 @@ body {
     border-bottom: 3px solid {{ design_settings.accent_color }};
     padding-bottom: 16px;
 }
-h1 { color: #173b5e; font-size: 2.2em; margin: 0; }
-.professional-title { color: {{ design_settings.accent_color }}; font-size: 1.2em; font-weight: bold; }
+h1 { color: #173b4c; font-size: 2.2em; margin: 0; }
+.professional-title { color: var(--template-accent); font-size: 1.2em; font-weight: bold; }
 .contact { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; font-size: 11px; }
-a { color: {{ design_settings.accent_color }}; text-decoration: none; }
+a { color: var(--template-accent); text-decoration: none; }
 section { margin-top: {% if design_settings.spacing == "compact" %}12{% elif design_settings.spacing == "spacious" %}28{% else %}20{% endif %}px; min-width: 0; }
 h2 {
-    color: {{ design_settings.accent_color }}; font-size: 1.15em; text-transform: uppercase;
+    color: var(--template-accent); font-size: 1.15em; text-transform: uppercase;
     letter-spacing: 1px; border-bottom: 1px solid #cbd8e5;
     padding-bottom: 5px; margin-bottom: 10px;
 }
@@ -61,7 +128,7 @@ h3 { color: #244d70; font-size: 13px; margin: 0; }
 </style>
 </head>
 <body>
-<div class="resume" data-layout="{{ design_settings.layout }}">
+<div class="resume" data-layout="{{ design_settings.layout }}" data-template="{{ resume.template_name }}">
     {% include "resumes/content.html" %}
 </div>
 </body>

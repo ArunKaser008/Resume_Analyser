@@ -1,5 +1,17 @@
 export type ProfileType = 'student' | 'fresher' | 'experienced'
-export type ResumeTemplate = 'modern' | 'professional' | 'minimal'
+export type ResumeTemplate =
+  | 'modern'
+  | 'professional'
+  | 'minimal'
+  | 'classic-clear'
+  | 'atlantic-blue'
+  | 'mercury-flow'
+  | 'executive'
+  | 'elegant'
+  | 'charcoal'
+  | 'coral'
+  | 'emerald'
+  | 'indigo'
 export type SectionType =
   | 'education'
   | 'work_experience'
@@ -46,7 +58,7 @@ export const defaultResumeDesign: ResumeDesignSettings = {
   font_family: 'Arial',
   font_size: 12,
   spacing: 'comfortable',
-  accent_color: '#2878B5',
+  accent_color: '#00A7A2',
   page_size: 'A4',
 }
 

@@ -2,16 +2,16 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { ApiError } from '../../api/client'
 import { createSectionRecord, deleteSectionRecord, getSectionRecords, updateSectionRecord } from '../../api/resumeContent'
 import { getResumeSections, updateResume, updateResumeSections } from '../../api/resumes'
-import type { CareerProfile, Resume, ResumeSection, SectionRecord, SectionType } from '../../api/types'
+import type { CareerProfile, CustomResumeSectionType, Resume, ResumeSection, SectionRecord, SectionType } from '../../api/types'
 import ResumeCustomizationPanel from './ResumeCustomizationPanel'
 
 const sectionInfo: { type: SectionType; title: string; description: string }[] = [
   { type: 'education', title: 'Education', description: 'Degrees, schools, and academic credentials.' },
-  { type: 'work_experience', title: 'Work experience', description: 'Roles, responsibilities, and career history.' },
-  { type: 'technical_skill', title: 'Technical skills', description: 'Skills to include in this resume.' },
+  { type: 'work_experience', title: 'Professional Experience', description: 'Roles, responsibilities, and career history.' },
+  { type: 'technical_skill', title: 'Skills', description: 'Skills to include in this resume.' },
   { type: 'project', title: 'Projects', description: 'Selected projects and their impact.' },
-  { type: 'certification', title: 'Certifications', description: 'Professional certifications and credentials.' },
-  { type: 'achievement', title: 'Achievements', description: 'Awards and other career achievements.' },
+  { type: 'certification', title: 'Certificates', description: 'Professional certifications and credentials.' },
+  { type: 'achievement', title: 'Awards', description: 'Awards and other career achievements.' },
 ]
 
 type Field = { name: string; label: string; type?: 'date' | 'number' | 'checkbox' | 'textarea' | 'url'; required?: boolean; maxLength?: number }
@@ -53,6 +53,33 @@ const fieldsByType: Record<SectionType, Field[]> = {
 
 type Draft = Record<string, string | boolean>
 type ItemMap = Record<SectionType, SectionRecord[]>
+type BuilderTab = 'overview' | 'content' | 'customize'
+
+const customContentTypes: {
+  key: string
+  title: string
+  description: string
+  icon: string
+  type?: SectionType
+  customType?: CustomResumeSectionType
+}[] = [
+  { key: 'summary', title: 'Summary', description: 'Add a short summary of your key strengths, experience, and career goals.', icon: '▣' },
+  { key: 'education', title: 'Education', description: 'Add your degrees and schools. Include your focus, honors, or exchange terms.', icon: '🎓', type: 'education' },
+  { key: 'work_experience', title: 'Professional Experience', description: 'Add your professional roles and employer history including internships.', icon: '▣', type: 'work_experience' },
+  { key: 'technical_skill', title: 'Skills', description: 'Add your hard and soft skills that help you stand out from the crowd.', icon: '✿', type: 'technical_skill' },
+  { key: 'language', title: 'Languages', description: 'Add your languages and proficiency level to show your communication range.', icon: '◉', customType: 'language' },
+  { key: 'certification', title: 'Certificates', description: 'Add your industry certificates or licenses. Include issuer and date earned.', icon: '♧', type: 'certification' },
+  { key: 'interest', title: 'Interests', description: 'Add relevant personal interests that support your career story and cultural fit.', icon: '⌁', customType: 'interest' },
+  { key: 'project', title: 'Projects', description: 'Add key projects you participated in and highlight your challenges, role, and impact.', icon: '▰', type: 'project' },
+  { key: 'course', title: 'Courses', description: 'Add online or in-person courses and training you joined and completed.', icon: '▦', customType: 'course' },
+  { key: 'achievement', title: 'Awards', description: 'Add your awards and recognitions from industry, competitions, or academia.', icon: '♙', type: 'achievement' },
+  { key: 'volunteer', title: 'Organisations', description: 'Add your memberships or volunteering with organisations including your role.', icon: '⌂', customType: 'volunteer' },
+  { key: 'publication', title: 'Publications', description: 'Add publications, articles, or books you wrote or contributed to.', icon: '▤', customType: 'publication' },
+  { key: 'reference', title: 'References', description: 'Add your references from managers or coworkers, including their contact details.', icon: '⌘', customType: 'reference' },
+  { key: 'declaration', title: 'Declaration', description: 'Add a declaration or any other additional information.', icon: '✎', customType: 'custom' },
+  { key: 'custom', title: 'Custom', description: 'Add a custom section for anything else, or combine sections cleanly.', icon: '✣', customType: 'custom' },
+]
+
 const emptyItems = (): ItemMap => ({ education: [], work_experience: [], technical_skill: [], project: [], certification: [], achievement: [] })
 const emptySections = (): ResumeSection[] => sectionInfo.map(({ type }) => ({ section_type: type, items: [] }))
 const recordLabel = (type: SectionType, item: SectionRecord): string => {
@@ -85,6 +112,8 @@ export default function ResumeBuilderPage({ resume, profile, onPreview, onResume
   const [editId, setEditId] = useState<string | null>(null)
   const [draft, setDraft] = useState<Draft>({})
   const [fieldError, setFieldError] = useState('')
+  const [activeTab, setActiveTab] = useState<BuilderTab>('content')
+  const [addContentOpen, setAddContentOpen] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -270,29 +299,146 @@ export default function ResumeBuilderPage({ resume, profile, onPreview, onResume
     }).finally(() => setSaving(false))
   }
 
-  return <div className="feature-page">
-    <div className="page-heading"><div><div className="eyebrow">RESUME BUILDER · {profile.full_name}</div><h1>{resume.title}</h1><p>Choose sections, add your content, and arrange the resume to your preference.</p></div><div className="heading-actions"><button className="button button-secondary" onClick={onPreview}>Preview & download</button><button className="button button-primary" onClick={() => onResumeChanged(resume)}>Done editing</button></div></div>
-    {error && <div className="notice notice-error" role="alert">{error}</div>}{notice && <div className="notice notice-success" role="status">{notice}</div>}
-    <ResumeCustomizationPanel resume={resume} profile={profile} onResumeUpdated={onResumeUpdated} onProfileChanged={onProfileChanged} />
-    <section className="panel layout-panel"><div className="panel-title"><div><h2>Sections and order</h2><p>Choose visible sections, then arrange them in your preferred order.</p></div><button className="button button-secondary" disabled={saving} onClick={saveLayout}>{saving ? 'Saving…' : 'Save layout'}</button></div>
-      <div className="section-toggles">{sectionInfo.map(({ type, title }) => <label className="check-label" key={type}><input type="checkbox" checked={visibleTypes.has(type)} onChange={() => toggleSection(type)} />{title}</label>)}</div>
-      <div className="order-list">{sections.map((section, index) => <div className="order-row" key={section.section_type}><span className="order-index">{String(index + 1).padStart(2, '0')}</span><strong>{sectionInfo.find((entry) => entry.type === section.section_type)?.title}</strong><span className="muted">{section.items.length} selected</span><button className="icon-button" disabled={index === 0} onClick={() => moveSection(index, -1)} aria-label="Move section up">↑</button><button className="icon-button" disabled={index === sections.length - 1} onClick={() => moveSection(index, 1)} aria-label="Move section down">↓</button></div>)}</div>
-    </section>
-    {busy ? <div className="panel empty-state"><span className="spinner" /><p>Loading resume content…</p></div> : <div className="builder-sections">
-      {sections.map((section, index) => {
-        const meta = sectionInfo.find((entry) => entry.type === section.section_type)!
-        const selected = section.items
-          .slice()
-          .sort((a, b) => a.display_order - b.display_order)
-          .map((item) => records[section.section_type].find((record) => record.id === item.item_id))
-          .filter((record): record is SectionRecord => Boolean(record))
-        const available = records[section.section_type].filter((record) => !section.items.some((item) => item.item_id === record.id))
-        return <section className="panel builder-section" key={section.section_type}><div className="panel-title"><div><span className="eyebrow">SECTION {String(index + 1).padStart(2, '0')}</span><h2>{meta.title}</h2><p>{meta.description}</p></div><button className="button button-secondary" onClick={() => startCreate(section.section_type)}>＋ Add</button></div>
-          {selected.length === 0 ? <p className="muted empty-copy">No items selected for this resume yet.</p> : <div className="content-list">{selected.map((item) => <article className="content-item" key={item.id}><div className="content-item-heading"><strong>{recordLabel(section.section_type, item)}</strong><span className="content-actions"><button className="text-button" onClick={() => startEdit(section.section_type, item)}>Edit</button><button className="text-button danger-text" onClick={() => void removeRecord(section.section_type, item)}>Delete</button></span></div><p>{summaryFor(section.section_type, item)}</p></article>)}</div>}
-          {available.length > 0 && <div className="available-items"><label>Add existing content<select defaultValue="" onChange={(event) => { const selectedRecord = available.find((record) => record.id === event.target.value); if (selectedRecord) void toggleItem(section.section_type, selectedRecord, true); event.target.value = '' }}><option value="" disabled>Choose an item…</option>{available.map((item) => <option key={item.id} value={item.id}>{recordLabel(section.section_type, item)}</option>)}</select></label></div>}
-        </section>
-      })}
+  const addContent = async (item: typeof customContentTypes[number]) => {
+    setAddContentOpen(false)
+    if (item.type) {
+      startCreate(item.type)
+      return
+    }
+    if (item.key === 'summary') {
+      setActiveTab('customize')
+      setNotice('Add your professional summary under Personal details.')
+      return
+    }
+    if (!item.customType) return
+    const customSections = resume.custom_sections || []
+    if (customSections.length >= 12) {
+      setError('A resume can contain at most 12 custom sections.')
+      return
+    }
+    setSaving(true)
+    setError('')
+    try {
+      const updated = await updateResume(resume.id, {
+        custom_sections: [...customSections, {
+          id: crypto.randomUUID(),
+          section_type: item.customType,
+          title: item.key === 'declaration' ? 'Declaration' : item.title === 'Custom' ? 'Custom section' : item.title,
+          entries: [],
+        }],
+      })
+      onResumeUpdated(updated)
+      setActiveTab('customize')
+      setNotice(`${item.title} section added. Add its details below.`)
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : 'Unable to add this section.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const openAiTools = () => {
+    window.location.hash = '#optimization'
+  }
+
+  return <div className="builder-workspace">
+    <header className="builder-toolbar">
+      <nav className="builder-tabs" aria-label="Resume editor">
+        <button type="button" className={activeTab === 'overview' ? 'active' : ''} onClick={() => setActiveTab('overview')}><span>▦</span>Overview</button>
+        <button type="button" className={activeTab === 'content' ? 'active' : ''} onClick={() => setActiveTab('content')}><span>▤</span>Content</button>
+        <button type="button" className={activeTab === 'customize' ? 'active' : ''} onClick={() => setActiveTab('customize')}><span>⚒</span>Customize</button>
+        <button type="button" onClick={openAiTools}><span>✣</span>AI Tools</button>
+      </nav>
+      <div className="builder-toolbar-actions">
+        <span className="builder-resume-name">{resume.title}<span>⌄</span></span>
+        <button type="button" className="builder-download" onClick={onPreview}>Download <span>⇩</span></button>
+        <button type="button" className="icon-button" aria-label="Back to resumes" title="Back to resumes" onClick={() => onResumeChanged(resume)}>⋮</button>
+      </div>
+    </header>
+
+    {error && <div className="notice notice-error builder-notice" role="alert">{error}</div>}
+    {notice && <div className="notice notice-success builder-notice" role="status">{notice}</div>}
+
+    {activeTab === 'overview' && <section className="builder-overview">
+      <div><span className="eyebrow">RESUME OVERVIEW</span><h1>{resume.title}</h1><p>Keep your details up to date and build each section of your resume.</p></div>
+      <div className="builder-overview-card"><strong>{profile.full_name}</strong><span>{profile.professional_title || 'Add a professional title'}</span><span>{sections.reduce((count, section) => count + section.items.length, 0)} content items · {resume.template_name} template</span><button type="button" className="resume-flow-primary" onClick={() => setActiveTab('content')}>Continue editing</button></div>
+    </section>}
+
+    {activeTab === 'content' && <div className="builder-editor-grid">
+      <section className="builder-content-column">
+        <article className="builder-contact-card">
+          <div className="builder-contact-copy">
+            <h1>{profile.full_name || 'Your name'}</h1>
+            {profile.professional_title && <p className="builder-contact-title">{profile.professional_title}</p>}
+            <div className="builder-contact-details">
+              <span>✉ {profile.email || 'Email'}</span>
+              <span>♧ {profile.phone || 'Phone'}</span>
+              <span>⌖ {profile.city || 'Address'}</span>
+            </div>
+          </div>
+          <button type="button" className="builder-edit-contact" aria-label="Edit contact information" onClick={() => setActiveTab('customize')}>✎</button>
+        </article>
+        {busy ? <div className="builder-content-loading"><span className="spinner" /><span>Loading resume content…</span></div> : <div className="builder-populated-sections">
+          {sections.filter((section) => section.items.length > 0).map((section) => {
+            const meta = sectionInfo.find((entry) => entry.type === section.section_type)!
+            const selected = section.items
+              .slice()
+              .sort((a, b) => a.display_order - b.display_order)
+              .map((item) => records[section.section_type].find((record) => record.id === item.item_id))
+              .filter((record): record is SectionRecord => Boolean(record))
+            return <section className="builder-content-section" key={section.section_type}>
+              <div className="builder-content-section-heading"><div><h2>{meta.title}</h2><span>{selected.length} {selected.length === 1 ? 'entry' : 'entries'}</span></div><button type="button" onClick={() => startCreate(section.section_type)}>＋ Add</button></div>
+              {selected.map((item) => <article className="content-item" key={item.id}>
+                <div className="content-item-heading"><strong>{recordLabel(section.section_type, item)}</strong><span className="content-actions"><button className="text-button" onClick={() => startEdit(section.section_type, item)}>Edit</button><button className="text-button danger-text" onClick={() => void removeRecord(section.section_type, item)}>Delete</button></span></div>
+                <p>{summaryFor(section.section_type, item)}</p>
+              </article>)}
+            </section>
+          })}
+          {(resume.custom_sections || []).map((section) => <section className="builder-content-section" key={section.id}>
+            <div className="builder-content-section-heading"><div><h2>{section.title}</h2><span>{section.entries.length} {section.entries.length === 1 ? 'entry' : 'entries'}</span></div><button type="button" onClick={() => setActiveTab('customize')}>＋ Add</button></div>
+            {section.entries.map((entry, index) => <article className="content-item" key={`${section.id}-${index}`}><div className="content-item-heading"><strong>{entry.title}</strong></div>{entry.description && <p>{entry.description}</p>}</article>)}
+          </section>)}
+        </div>}
+        <button type="button" className="builder-add-content" onClick={() => setAddContentOpen(true)}><span>＋</span>Add Content</button>
+      </section>
+      <ResumeDocumentPreview resume={resume} profile={profile} records={records} sections={sections} />
     </div>}
+
+    {activeTab === 'customize' && <div className="builder-customize-content">
+      <div className="builder-customize-heading"><div><span className="eyebrow">RESUME BUILDER</span><h1>Customize your resume</h1><p>Update your details, design, and the order of your sections.</p></div><button type="button" className="resume-flow-secondary" onClick={() => setActiveTab('content')}>← Back to content</button></div>
+      <ResumeCustomizationPanel resume={resume} profile={profile} onResumeUpdated={onResumeUpdated} onProfileChanged={onProfileChanged} />
+      <section className="panel layout-panel"><div className="panel-title"><div><h2>Sections and order</h2><p>Choose visible sections, then arrange them in your preferred order.</p></div><button className="button button-secondary" disabled={saving} onClick={saveLayout}>{saving ? 'Saving…' : 'Save layout'}</button></div>
+        <div className="section-toggles">{sectionInfo.map(({ type, title }) => <label className="check-label" key={type}><input type="checkbox" checked={visibleTypes.has(type)} onChange={() => toggleSection(type)} />{title}</label>)}</div>
+        <div className="order-list">{sections.map((section, index) => <div className="order-row" key={section.section_type}><span className="order-index">{String(index + 1).padStart(2, '0')}</span><strong>{sectionInfo.find((entry) => entry.type === section.section_type)?.title}</strong><span className="muted">{section.items.length} selected</span><button className="icon-button" disabled={index === 0} onClick={() => moveSection(index, -1)} aria-label="Move section up">↑</button><button className="icon-button" disabled={index === sections.length - 1} onClick={() => moveSection(index, 1)} aria-label="Move section down">↓</button></div>)}</div>
+      </section>
+      {busy ? <div className="panel empty-state"><span className="spinner" /><p>Loading resume content…</p></div> : <div className="builder-sections">
+        {sections.map((section, index) => {
+          const meta = sectionInfo.find((entry) => entry.type === section.section_type)!
+          const selected = section.items
+            .slice()
+            .sort((a, b) => a.display_order - b.display_order)
+            .map((item) => records[section.section_type].find((record) => record.id === item.item_id))
+            .filter((record): record is SectionRecord => Boolean(record))
+          const available = records[section.section_type].filter((record) => !section.items.some((item) => item.item_id === record.id))
+          return <section className="panel builder-section" key={section.section_type}><div className="panel-title"><div><span className="eyebrow">SECTION {String(index + 1).padStart(2, '0')}</span><h2>{meta.title}</h2><p>{meta.description}</p></div><button className="button button-secondary" onClick={() => startCreate(section.section_type)}>＋ Add</button></div>
+            {selected.length === 0 ? <p className="muted empty-copy">No items selected for this resume yet.</p> : <div className="content-list">{selected.map((item) => <article className="content-item" key={item.id}><div className="content-item-heading"><strong>{recordLabel(section.section_type, item)}</strong><span className="content-actions"><button className="text-button" onClick={() => startEdit(section.section_type, item)}>Edit</button><button className="text-button danger-text" onClick={() => void removeRecord(section.section_type, item)}>Delete</button></span></div><p>{summaryFor(section.section_type, item)}</p></article>)}</div>}
+            {available.length > 0 && <div className="available-items"><label>Add existing content<select defaultValue="" onChange={(event) => { const selectedRecord = available.find((record) => record.id === event.target.value); if (selectedRecord) void toggleItem(section.section_type, selectedRecord, true); event.target.value = '' }}><option value="" disabled>Choose an item…</option>{available.map((item) => <option key={item.id} value={item.id}>{recordLabel(section.section_type, item)}</option>)}</select></label></div>}
+          </section>
+        })}
+      </div>}
+    </div>}
+
+    {addContentOpen && <div className="resume-flow-overlay builder-add-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setAddContentOpen(false) }}>
+      <section className="builder-add-dialog" role="dialog" aria-modal="true" aria-labelledby="add-content-title">
+        <button type="button" className="resume-dialog-close" onClick={() => setAddContentOpen(false)} aria-label="Close">×</button>
+        <h2 id="add-content-title">Add content</h2>
+        <p className="builder-add-import">Already have a resume? <button type="button" onClick={() => { setAddContentOpen(false); window.location.hash = '#builder' }}>Import resume</button></p>
+        <div className="builder-content-type-grid">{customContentTypes.map((item) => <button type="button" className={`builder-content-type ${item.key === 'custom' ? 'custom' : ''}`} key={item.key} onClick={() => void addContent(item)}>
+          <span className="builder-content-type-title"><i>{item.icon}</i><strong>{item.title}</strong></span><span>{item.description}</span>
+        </button>)}</div>
+      </section>
+    </div>}
+
     {formType && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeForm() }}><form className="modal-card" onSubmit={(event) => void submitRecord(event)}><div className="panel-title"><div><span className="eyebrow">{editId ? 'EDIT CONTENT' : 'ADD CONTENT'}</span><h2>{sectionInfo.find((entry) => entry.type === formType)?.title}</h2></div><button type="button" className="icon-button" onClick={closeForm} aria-label="Close">×</button></div><div className="form-grid">{fieldsByType[formType].map((field) => <label key={field.name} className={field.type === 'textarea' ? 'field-wide' : field.type === 'checkbox' ? 'check-label' : ''}>{field.type === 'checkbox' ? <><input type="checkbox" checked={Boolean(draft[field.name])} onChange={(event) => setDraft({ ...draft, [field.name]: event.target.checked })} />{field.label}</> : <>{field.label}{field.type === 'textarea' ? <><textarea rows={3} maxLength={field.maxLength} value={String(draft[field.name] || '')} onChange={(event) => setDraft({ ...draft, [field.name]: event.target.value })} /><span className="field-hint">{String(draft[field.name] || '').length}/{field.maxLength} characters</span></> : <input required={field.required} type={field.type || 'text'} min={field.type === 'number' ? 0 : field.required ? 2 : undefined} max={field.type === 'number' ? 60 : undefined} step={field.type === 'number' ? 1 : undefined} minLength={field.required && field.type !== 'date' ? 2 : undefined} maxLength={field.maxLength} value={String(draft[field.name] || '')} onChange={(event) => setDraft({ ...draft, [field.name]: event.target.value })} />}</>}</label>)}</div>{fieldError && <div className="notice notice-error field-validation-error" role="alert">{fieldError}</div>}<div className="form-actions"><button type="button" className="button button-secondary" onClick={closeForm}>Cancel</button><button className="button button-primary" disabled={saving}>{saving ? 'Saving…' : editId ? 'Save changes' : 'Add to resume'}</button></div></form></div>}
   </div>
 }
@@ -307,4 +453,40 @@ function summaryFor(type: SectionType, item: SectionRecord): string {
     achievement: ['issuing_organization', 'achievement_date', 'description'],
   }
   return fields[type].map((key) => item[key]).filter((value) => value !== null && value !== undefined && value !== '').join(' · ')
+}
+
+function ResumeDocumentPreview({ resume, profile, records, sections }: {
+  resume: Resume
+  profile: CareerProfile
+  records: ItemMap
+  sections: ResumeSection[]
+}) {
+  const included = sections.map((section) => ({
+    section,
+    items: section.items
+      .slice()
+      .sort((first, second) => first.display_order - second.display_order)
+      .map((item) => records[section.section_type].find((record) => record.id === item.item_id))
+      .filter((item): item is SectionRecord => Boolean(item)),
+  })).filter((entry) => entry.items.length > 0)
+
+  return <aside className={`builder-preview-panel ${resume.template_name}`}>
+    <article className="builder-resume-paper">
+      <header className="builder-paper-header">
+        <h2>{profile.full_name || 'Your name'}</h2>
+        {profile.professional_title && <p>{profile.professional_title}</p>}
+        <div>{[profile.email, profile.phone, profile.city, profile.linkedin_url].filter(Boolean).join('  ·  ') || 'Email  ·  Phone  ·  Address'}</div>
+      </header>
+      {profile.summary && <section className="builder-paper-section"><h3>Summary</h3><p>{profile.summary}</p></section>}
+      {included.map(({ section, items }) => <section className="builder-paper-section" key={section.section_type}>
+        <h3>{sectionInfo.find((entry) => entry.type === section.section_type)?.title}</h3>
+        {items.map((item) => <div className="builder-paper-entry" key={item.id}><strong>{recordLabel(section.section_type, item)}</strong><span>{summaryFor(section.section_type, item)}</span></div>)}
+      </section>)}
+      {(resume.custom_sections || []).filter((section) => section.entries.length > 0).map((section) => <section className="builder-paper-section" key={section.id}>
+        <h3>{section.title}</h3>
+        {section.entries.map((entry, index) => <div className="builder-paper-entry" key={`${section.id}-${index}`}><strong>{entry.title}</strong><span>{entry.description || entry.subtitle || ''}</span></div>)}
+      </section>)}
+      {included.length === 0 && !profile.summary && (resume.custom_sections || []).every((section) => !section.entries.length) && <p className="builder-paper-empty">Your resume preview will appear here as you add content.</p>}
+    </article>
+  </aside>
 }

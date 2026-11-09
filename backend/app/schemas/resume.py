@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
+from app.schemas.resume_template import TemplateName
+
 
 class CustomResumeEntry(BaseModel):
     title: str = Field(min_length=2, max_length=200)
@@ -41,7 +43,7 @@ class ResumeDesignSettings(BaseModel):
     font_family: Literal["Arial", "Georgia", "Inter", "Tahoma"] = "Arial"
     font_size: int = Field(default=12, ge=10, le=14)
     spacing: Literal["compact", "comfortable", "spacious"] = "comfortable"
-    accent_color: str = Field(default="#2878B5", pattern=r"^#[0-9A-Fa-f]{6}$")
+    accent_color: str = Field(default="#00A7A2", pattern=r"^#[0-9A-Fa-f]{6}$")
     page_size: Literal["A4", "Letter"] = "A4"
 
 
@@ -63,7 +65,7 @@ class ResumeCreate(BaseModel):
     profile_type: Literal["student", "fresher", "experienced"] = "experienced"
     title: str = Field(min_length=2, max_length=150)
     target_role: str | None = Field(default=None, max_length=200)
-    template_name: str = Field(default="modern", max_length=50)
+    template_name: TemplateName = "modern"
     is_primary: bool = False
     custom_sections: list[CustomResumeSection] = Field(default_factory=list, max_length=12)
     design_settings: ResumeDesignSettings = Field(default_factory=ResumeDesignSettings)
@@ -85,7 +87,7 @@ class ResumeCreate(BaseModel):
 class ResumeUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=2, max_length=150)
     target_role: str | None = Field(default=None, max_length=200)
-    template_name: str | None = Field(default=None, max_length=50)
+    template_name: TemplateName | None = None
     is_primary: bool | None = None
     custom_sections: list[CustomResumeSection] = Field(default_factory=list, max_length=12)
     design_settings: ResumeDesignSettings = Field(default_factory=ResumeDesignSettings)

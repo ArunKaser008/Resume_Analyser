@@ -5,13 +5,7 @@ from sqlalchemy.orm import Session
 from app.repositories.resume_preview_repository import (
     ResumePreviewRepository,
 )
-
-
-AVAILABLE_TEMPLATES = {
-    "modern",
-    "professional",
-    "minimal",
-}
+from app.schemas.resume_template import AVAILABLE_TEMPLATES
 
 
 class ResumeTemplateService:
