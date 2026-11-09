@@ -142,7 +142,7 @@ function App() {
         {error && <div className="notice notice-error global-notice" role="alert"><span>{error}</span><button className="text-button" onClick={() => void refreshWorkspace().catch((cause: unknown) => setError(getErrorMessage(cause)))}>Retry</button></div>}
         {loading ? <div className="panel empty-state loading-panel"><span className="spinner" /><p>Loading resumes…</p></div> : <>
           {page === 'ats' && <AnalysisPage key={analysisResumeId || 'upload'} resumes={resumes} initialResumeId={analysisResumeId || undefined} onResumeImported={handleResumeImported} onResumeFinalized={handleResumeImported} />}
-          {page === 'builder' && <ResumeLibraryPage resumes={resumes} onChanged={refreshWorkspace} onBuild={openBuilder} onPreview={openPreview} />}
+          {page === 'builder' && <ResumeLibraryPage resumes={resumes} onChanged={refreshWorkspace} onBuild={openBuilder} onPreview={openPreview} onHome={() => navigateFeature('ats')} />}
           {page === 'builder-edit' && (selectedResume && selectedProfile
             ? <ResumeBuilderPage resume={selectedResume} profile={selectedProfile} onPreview={() => openPreview(selectedResume)} onResumeUpdated={(resume) => { setSelectedResume(resume); setResumes((current) => current.map((item) => item.id === resume.id ? resume : item)) }} onProfileChanged={(profile) => setProfiles((current) => current.map((item) => item.id === profile.id ? profile : item))} onResumeChanged={(resume) => { setSelectedResume(resume); navigate('builder') }} />
             : <SelectionEmpty title="Select a resume to edit" description="Choose a resume in the builder to add and organize sections." onClick={() => navigate('builder')} button="Open resume builder" />)}

@@ -10,9 +10,10 @@ interface Props {
   onChanged: () => Promise<void>
   onBuild: (resume: Resume) => void
   onPreview: (resume: Resume) => void
+  onHome: () => void
 }
 
-export default function ResumeLibraryPage({ resumes, onChanged, onBuild, onPreview }: Props) {
+export default function ResumeLibraryPage({ resumes, onChanged, onBuild, onPreview, onHome }: Props) {
   const [selectedTemplate, setSelectedTemplate] = useState<ResumeTemplateOption | null>(null)
   const [startStep, setStartStep] = useState<'choose' | 'blank' | null>(null)
   const [showResumes, setShowResumes] = useState(false)
@@ -89,10 +90,11 @@ export default function ResumeLibraryPage({ resumes, onChanged, onBuild, onPrevi
   return <div className="resume-flow">
     <main className="resume-flow-main">
       <header className="resume-gallery-topline">
-        <a className="resume-flow-brand" href="#builder" aria-label="Resume builder home">
+        <a className="resume-flow-brand" href="#ats" aria-label="MentorMuni home">
         <img className="resume-flow-logo" src={mentorMuniLogo} alt="" /><strong>MentorMuni</strong>
         </a>
         <div className="resume-gallery-utilities">
+          <button type="button" className="resume-flow-secondary" onClick={onHome}>← Back to home</button>
           <button type="button" className="resume-flow-secondary" onClick={() => setShowResumes((visible) => !visible)}>{showResumes ? '← Templates' : `My resumes (${resumes.length})`}</button>
           {!showResumes && <>
             <button type="button" className="resume-import-top" onClick={() => { setSelectedTemplate(resumeTemplates[0]); fileInput.current?.click() }}>

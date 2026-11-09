@@ -2265,10 +2265,29 @@ input[type='checkbox'] {
   margin-left: 6px;
 }
 
-.builder-toolbar-actions .icon-button {
-  border-color: #4b3b56;
-  color: #2e1d3d;
-  background: #fff;
+.builder-back-button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 11px;
+  border: 1px solid #d5e5e0;
+  border-radius: 7px;
+  color: #174b4d;
+  background: #f4faf8;
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.builder-back-button:hover {
+  border-color: #9dcac0;
+  background: #eaf5f1;
+}
+
+.builder-back-button span {
+  font-size: 16px;
 }
 
 .builder-notice {

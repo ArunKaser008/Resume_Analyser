@@ -506,7 +506,7 @@ export default function ResumeBuilderPage({ resume, profile, onPreview, onResume
       <div className="builder-toolbar-actions">
         <span className="builder-resume-name">{resume.title}<span>⌄</span></span>
         <button type="button" className="builder-download" onClick={onPreview}>Download <span>⇩</span></button>
-        <button type="button" className="icon-button" aria-label="Back to resumes" title="Back to resumes" onClick={() => onResumeChanged(resume)}>⋮</button>
+        <button type="button" className="builder-back-button" onClick={() => onResumeChanged(resume)}><span aria-hidden="true">←</span> Back to resumes</button>
       </div>
     </header>
 
