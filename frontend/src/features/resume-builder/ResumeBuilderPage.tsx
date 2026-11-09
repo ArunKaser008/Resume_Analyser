@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { ApiError } from '../../api/client'
+import { updateCareerProfile } from '../../api/careerProfiles'
 import { createSectionRecord, deleteSectionRecord, getSectionRecords, updateSectionRecord } from '../../api/resumeContent'
 import { getResumeSections, updateResume, updateResumeSections } from '../../api/resumes'
-import type { CareerProfile, CustomResumeSectionType, Resume, ResumeSection, SectionRecord, SectionType } from '../../api/types'
+import type { CareerProfile, CustomResumeEntry, CustomResumeSection, CustomResumeSectionType, Resume, ResumeSection, SectionRecord, SectionType } from '../../api/types'
 import ResumeCustomizationPanel from './ResumeCustomizationPanel'
 
 const sectionInfo: { type: SectionType; title: string; description: string }[] = [
@@ -52,6 +53,7 @@ const fieldsByType: Record<SectionType, Field[]> = {
 }
 
 type Draft = Record<string, string | boolean>
+type PendingRecord = { id: string; type: SectionType; fields: Record<string, unknown> }
 type ItemMap = Record<SectionType, SectionRecord[]>
 type BuilderTab = 'overview' | 'content' | 'customize'
 
@@ -114,6 +116,12 @@ export default function ResumeBuilderPage({ resume, profile, onPreview, onResume
   const [fieldError, setFieldError] = useState('')
   const [activeTab, setActiveTab] = useState<BuilderTab>('content')
   const [addContentOpen, setAddContentOpen] = useState(false)
+  const [pendingRecords, setPendingRecords] = useState<PendingRecord[]>([])
+  const [savedDraftRecords, setSavedDraftRecords] = useState<Record<string, SectionRecord>>({})
+  const [customSectionsDraft, setCustomSectionsDraft] = useState<CustomResumeSection[]>(resume.custom_sections || [])
+  const [pendingCustomSectionIds, setPendingCustomSectionIds] = useState<string[]>([])
+  const [summaryOpen, setSummaryOpen] = useState(false)
+  const [summaryDraft, setSummaryDraft] = useState(profile.summary || '')
 
   useEffect(() => {
     let active = true
@@ -142,6 +150,9 @@ export default function ResumeBuilderPage({ resume, profile, onPreview, onResume
   }, [profile.id, resume.id, resume.section_order])
 
   const visibleTypes = useMemo(() => new Set(sections.map((section) => section.section_type)), [sections])
+  const hasPendingChanges = pendingRecords.length > 0
+    || pendingCustomSectionIds.length > 0
+    || (summaryOpen && summaryDraft !== (profile.summary || ''))
   const persistSections = async (next: ResumeSection[]) => {
     setSaving(true)
     setError('')
@@ -187,6 +198,16 @@ export default function ResumeBuilderPage({ resume, profile, onPreview, onResume
     setError('')
     setFieldError('')
   }
+  const startEditPending = (item: PendingRecord) => {
+    setFormType(item.type)
+    setEditId(item.id)
+    setDraft(Object.fromEntries(fieldsByType[item.type].map((field) => {
+      const value = item.fields[field.name]
+      return [field.name, field.type === 'checkbox' ? Boolean(value) : value == null ? '' : String(value)]
+    })))
+    setError('')
+    setFieldError('')
+  }
   const closeForm = () => { setFormType(null); setEditId(null); setDraft({}); setFieldError('') }
   const submitRecord = async (event: FormEvent) => {
     event.preventDefault()
@@ -216,7 +237,6 @@ export default function ResumeBuilderPage({ resume, profile, onPreview, onResume
       setFieldError('Years of experience must be a whole number from 0 to 60.')
       return
     }
-    setSaving(true)
     const payload: Record<string, unknown> = {}
     for (const field of fieldsByType[formType]) {
       const value = draft[field.name]
@@ -225,6 +245,24 @@ export default function ResumeBuilderPage({ resume, profile, onPreview, onResume
       else payload[field.name] = value === '' ? null : value
     }
     if ((formType === 'education' && draft.is_current) || (formType === 'work_experience' && draft.is_current)) payload.end_date = null
+    const pending = editId ? pendingRecords.find((item) => item.id === editId) : undefined
+    if (pending) {
+      setPendingRecords((current) => current.map((item) => item.id === pending.id ? { ...item, fields: payload } : item))
+      closeForm()
+      setNotice('Section draft updated. Save the resume to keep your changes.')
+      return
+    }
+    if (!editId) {
+      const id = crypto.randomUUID()
+      setPendingRecords((current) => [...current, { id, type: formType, fields: payload }])
+      setSections((current) => current.some((section) => section.section_type === formType)
+        ? current
+        : [...current, { section_type: formType, items: [] }])
+      closeForm()
+      setNotice('Section added to your draft. Add more content, then save the resume.')
+      return
+    }
+    setSaving(true)
     try {
       if (editId) {
         const updated = await updateSectionRecord(formType, editId, payload)
@@ -276,6 +314,27 @@ export default function ResumeBuilderPage({ resume, profile, onPreview, onResume
       setSaving(false)
     }
   }
+  const removePendingRecord = async (pending: PendingRecord) => {
+    const saved = savedDraftRecords[pending.id]
+    if (saved) {
+      setSaving(true)
+      setError('')
+      try {
+        await deleteSectionRecord(pending.type, saved.id)
+      } catch (cause) {
+        setError(cause instanceof ApiError ? cause.message : 'Unable to remove the saved draft item.')
+        setSaving(false)
+        return
+      }
+      setSaving(false)
+    }
+    setPendingRecords((current) => current.filter((item) => item.id !== pending.id))
+    setSavedDraftRecords((current) => {
+      const next = { ...current }
+      delete next[pending.id]
+      return next
+    })
+  }
   const saveLayout = () => {
     const next = sections.map((section) => ({
       ...section,
@@ -299,43 +358,138 @@ export default function ResumeBuilderPage({ resume, profile, onPreview, onResume
     }).finally(() => setSaving(false))
   }
 
-  const addContent = async (item: typeof customContentTypes[number]) => {
+  const saveResumeDraft = async () => {
+    setSaving(true)
+    setError('')
+    setNotice('')
+    const invalidCustomSection = customSectionsDraft.find((section) => pendingCustomSectionIds.includes(section.id)
+      && (section.title.trim().length < 2 || section.title.trim().length > 60
+        || section.entries.some((entry) => entry.title.trim().length < 2 || entry.title.trim().length > 200)))
+    if (invalidCustomSection) {
+      setSaving(false)
+      setError('Complete each new section title and entry title before saving. Section titles must contain 2 to 60 characters; entry titles must contain 2 to 200.')
+      return
+    }
+    const createdRecords = { ...savedDraftRecords }
+    try {
+      for (const pending of pendingRecords) {
+        createdRecords[pending.id] = createdRecords[pending.id]
+          ? await updateSectionRecord(pending.type, createdRecords[pending.id].id, pending.fields)
+          : await createSectionRecord(pending.type, profile, pending.fields)
+        setSavedDraftRecords({ ...createdRecords })
+      }
+
+      const nextSections = sections.map((section) => {
+        const newItems = pendingRecords
+          .filter((pending) => pending.type === section.section_type)
+          .map((pending) => createdRecords[pending.id])
+          .filter((record): record is SectionRecord => Boolean(record))
+        const existingItems = section.items.filter((item) => !newItems.some((record) => record.id === item.item_id))
+        return {
+          ...section,
+          items: [
+            ...existingItems,
+            ...newItems.map((record, index) => ({
+              item_id: record.id,
+              display_order: existingItems.length + index,
+            })),
+          ],
+        }
+      })
+      const updatedResume = await updateResume(resume.id, {
+        section_order: nextSections.map((section) => section.section_type),
+        custom_sections: customSectionsDraft.map((section) => ({
+          ...section,
+          title: section.title.trim(),
+          entries: section.entries.map((entry) => ({
+            ...entry,
+            title: entry.title.trim(),
+            subtitle: entry.subtitle?.trim() || null,
+            date: entry.date?.trim() || null,
+            location: entry.location?.trim() || null,
+            url: entry.url?.trim() || null,
+            description: entry.description?.trim() || null,
+          })),
+        })),
+      })
+      setCustomSectionsDraft(updatedResume.custom_sections || [])
+      onResumeUpdated(updatedResume)
+      const updatedSections = await updateResumeSections(resume.id, nextSections)
+      if (summaryOpen && summaryDraft !== (profile.summary || '')) {
+        const updatedProfile = await updateCareerProfile(profile.id, { summary: summaryDraft.trim() || null })
+        setSummaryDraft(updatedProfile.summary || '')
+        onProfileChanged(updatedProfile)
+      }
+      const order = nextSections.map((section) => section.section_type)
+      setSections(updatedSections.sections.sort((first, second) => order.indexOf(first.section_type) - order.indexOf(second.section_type)))
+      setRecords((current) => {
+        const next = { ...current }
+        for (const pending of pendingRecords) {
+          const created = createdRecords[pending.id]
+          if (created && !next[pending.type].some((item) => item.id === created.id)) {
+            next[pending.type] = [...next[pending.type], created]
+          }
+        }
+        return next
+      })
+      setPendingRecords([])
+      setSavedDraftRecords({})
+      setPendingCustomSectionIds([])
+      setSummaryOpen(false)
+      setNotice('Resume saved successfully.')
+    } catch (cause) {
+      setError(cause instanceof ApiError
+        ? `Some changes may already be saved. ${cause.message} Select Save resume to retry the remaining changes.`
+        : `Some changes may already be saved. ${cause instanceof Error ? cause.message : 'Unable to save the resume.'} Select Save resume to retry the remaining changes.`)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const updateCustomSection = (id: string, patch: Partial<CustomResumeSection>) => {
+    setCustomSectionsDraft((current) => current.map((section) => section.id === id ? { ...section, ...patch } : section))
+  }
+
+  const updateCustomEntry = (sectionId: string, patch: Partial<CustomResumeEntry>) => {
+    setCustomSectionsDraft((current) => current.map((section) => section.id === sectionId
+      ? { ...section, entries: section.entries.map((entry, index) => index === 0 ? { ...entry, ...patch } : entry) }
+      : section))
+  }
+
+  const addContent = (item: typeof customContentTypes[number]) => {
     setAddContentOpen(false)
     if (item.type) {
       startCreate(item.type)
       return
     }
     if (item.key === 'summary') {
-      setActiveTab('customize')
-      setNotice('Add your professional summary under Personal details.')
+      setSummaryOpen(true)
+      setNotice('Add or update your summary below, then save the complete resume.')
       return
     }
     if (!item.customType) return
-    const customSections = resume.custom_sections || []
-    if (customSections.length >= 12) {
+    if (customSectionsDraft.length >= 12) {
       setError('A resume can contain at most 12 custom sections.')
       return
     }
-    setSaving(true)
-    setError('')
-    try {
-      const updated = await updateResume(resume.id, {
-        custom_sections: [...customSections, {
-          id: crypto.randomUUID(),
-          section_type: item.customType,
-          title: item.key === 'declaration' ? 'Declaration' : item.title === 'Custom' ? 'Custom section' : item.title,
-          entries: [],
-        }],
-      })
-      onResumeUpdated(updated)
-      setActiveTab('customize')
-      setNotice(`${item.title} section added. Add its details below.`)
-    } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : 'Unable to add this section.')
-    } finally {
-      setSaving(false)
-    }
+    const id = crypto.randomUUID()
+    const emptyEntry: CustomResumeEntry = { title: '', subtitle: null, date: null, location: null, url: null, description: null }
+    setCustomSectionsDraft((current) => [...current, {
+      id,
+      section_type: item.customType as CustomResumeSectionType,
+      title: item.key === 'declaration' ? 'Declaration' : item.title === 'Custom' ? 'Custom section' : item.title,
+      entries: [emptyEntry],
+    }])
+    setPendingCustomSectionIds((current) => [...current, id])
+    setNotice(`${item.title} section added to your draft. Complete it and save the resume.`)
   }
+
+  const recordForm = (inline: boolean) => formType && <form className={inline ? 'panel builder-section builder-inline-record-form' : 'modal-card'} onSubmit={(event) => void submitRecord(event)}>
+    <div className="panel-title"><div><span className="eyebrow">{editId ? 'EDIT CONTENT' : 'ADD TO RESUME DRAFT'}</span><h2>{sectionInfo.find((entry) => entry.type === formType)?.title}</h2></div><button type="button" className="icon-button" onClick={closeForm} aria-label="Close">×</button></div>
+    <div className="form-grid">{fieldsByType[formType].map((field) => <label key={field.name} className={field.type === 'textarea' ? 'field-wide' : field.type === 'checkbox' ? 'check-label' : ''}>{field.type === 'checkbox' ? <><input type="checkbox" checked={Boolean(draft[field.name])} onChange={(event) => setDraft({ ...draft, [field.name]: event.target.checked })} />{field.label}</> : <>{field.label}{field.type === 'textarea' ? <><textarea rows={3} maxLength={field.maxLength} value={String(draft[field.name] || '')} onChange={(event) => setDraft({ ...draft, [field.name]: event.target.value })} /><span className="field-hint">{String(draft[field.name] || '').length}/{field.maxLength} characters</span></> : <input required={field.required} type={field.type || 'text'} min={field.type === 'number' ? 0 : field.required ? 2 : undefined} max={field.type === 'number' ? 60 : undefined} step={field.type === 'number' ? 1 : undefined} minLength={field.required && field.type !== 'date' ? 2 : undefined} maxLength={field.maxLength} value={String(draft[field.name] || '')} onChange={(event) => setDraft({ ...draft, [field.name]: event.target.value })} />}</>}</label>)}</div>
+    {fieldError && <div className="notice notice-error field-validation-error" role="alert">{fieldError}</div>}
+    <div className="form-actions"><button type="button" className="button button-secondary" onClick={closeForm}>Cancel</button><button className="button button-primary">{editId ? 'Save changes' : 'Add section'}</button></div>
+  </form>
 
   const openAiTools = () => {
     window.location.hash = '#optimization'
@@ -378,8 +532,13 @@ export default function ResumeBuilderPage({ resume, profile, onPreview, onResume
           </div>
           <button type="button" className="builder-edit-contact" aria-label="Edit contact information" onClick={() => setActiveTab('customize')}>✎</button>
         </article>
+        {summaryOpen && <section className="panel builder-section builder-summary-draft">
+          <div className="panel-title"><div><span className="eyebrow">SUMMARY</span><h2>Professional summary</h2><p>Write a short introduction that will appear at the top of your resume.</p></div><button type="button" className="icon-button" onClick={() => setSummaryOpen(false)} aria-label="Close summary editor">×</button></div>
+          <label>Summary<textarea rows={5} maxLength={5000} value={summaryDraft} onChange={(event) => setSummaryDraft(event.target.value)} /><span className="field-hint">{summaryDraft.length}/5000 characters</span></label>
+        </section>}
+        {formType && !editId && recordForm(true)}
         {busy ? <div className="builder-content-loading"><span className="spinner" /><span>Loading resume content…</span></div> : <div className="builder-populated-sections">
-          {sections.filter((section) => section.items.length > 0).map((section) => {
+          {sections.filter((section) => section.items.length > 0 || pendingRecords.some((item) => item.type === section.section_type)).map((section) => {
             const meta = sectionInfo.find((entry) => entry.type === section.section_type)!
             const selected = section.items
               .slice()
@@ -387,26 +546,56 @@ export default function ResumeBuilderPage({ resume, profile, onPreview, onResume
               .map((item) => records[section.section_type].find((record) => record.id === item.item_id))
               .filter((record): record is SectionRecord => Boolean(record))
             return <section className="builder-content-section" key={section.section_type}>
-              <div className="builder-content-section-heading"><div><h2>{meta.title}</h2><span>{selected.length} {selected.length === 1 ? 'entry' : 'entries'}</span></div><button type="button" onClick={() => startCreate(section.section_type)}>＋ Add</button></div>
+              <div className="builder-content-section-heading"><div><h2>{meta.title}</h2><span>{selected.length + pendingRecords.filter((item) => item.type === section.section_type).length} {(selected.length + pendingRecords.filter((item) => item.type === section.section_type).length) === 1 ? 'entry' : 'entries'}</span></div><button type="button" onClick={() => startCreate(section.section_type)}>＋ Add</button></div>
               {selected.map((item) => <article className="content-item" key={item.id}>
                 <div className="content-item-heading"><strong>{recordLabel(section.section_type, item)}</strong><span className="content-actions"><button className="text-button" onClick={() => startEdit(section.section_type, item)}>Edit</button><button className="text-button danger-text" onClick={() => void removeRecord(section.section_type, item)}>Delete</button></span></div>
                 <p>{summaryFor(section.section_type, item)}</p>
               </article>)}
+              {pendingRecords.filter((item) => item.type === section.section_type).map((item) => <article className="content-item draft-content-item" key={item.id}>
+                <div className="content-item-heading"><strong>{pendingRecordLabel(item)}</strong><span className="content-actions"><button className="text-button" onClick={() => startEditPending(item)}>Edit</button><button className="text-button danger-text" disabled={saving} onClick={() => void removePendingRecord(item)}>Remove</button></span></div>
+                <p>{Object.entries(item.fields).filter(([key, value]) => key !== 'is_current' && key !== 'does_not_expire' && value !== null && value !== '').map(([, value]) => String(value)).join(' · ') || 'Complete this section before saving.'}</p>
+                <span className="draft-item-label">Not saved yet</span>
+              </article>)}
             </section>
           })}
-          {(resume.custom_sections || []).map((section) => <section className="builder-content-section" key={section.id}>
-            <div className="builder-content-section-heading"><div><h2>{section.title}</h2><span>{section.entries.length} {section.entries.length === 1 ? 'entry' : 'entries'}</span></div><button type="button" onClick={() => setActiveTab('customize')}>＋ Add</button></div>
-            {section.entries.map((entry, index) => <article className="content-item" key={`${section.id}-${index}`}><div className="content-item-heading"><strong>{entry.title}</strong></div>{entry.description && <p>{entry.description}</p>}</article>)}
+          {customSectionsDraft.map((section) => <section className="builder-content-section" key={section.id}>
+            {pendingCustomSectionIds.includes(section.id) ? <>
+              <div className="builder-content-section-heading"><div><h2>{section.title}</h2><span>Not saved yet</span></div><button type="button" className="text-button danger-text" onClick={() => { setCustomSectionsDraft((current) => current.filter((entry) => entry.id !== section.id)); setPendingCustomSectionIds((current) => current.filter((id) => id !== section.id)) }}>Remove</button></div>
+              <div className="form-grid builder-custom-entry-draft">
+                <label className="field-wide">Section title<input required minLength={2} maxLength={60} value={section.title} onChange={(event) => updateCustomSection(section.id, { title: event.target.value })} /></label>
+                <label className="field-wide">Entry title<input required minLength={2} maxLength={200} value={section.entries[0]?.title || ''} onChange={(event) => updateCustomEntry(section.id, { title: event.target.value })} /></label>
+                <label>Subtitle<input maxLength={200} value={section.entries[0]?.subtitle || ''} onChange={(event) => updateCustomEntry(section.id, { subtitle: event.target.value || null })} /></label>
+                <label>Date<input maxLength={50} value={section.entries[0]?.date || ''} onChange={(event) => updateCustomEntry(section.id, { date: event.target.value || null })} /></label>
+                <label>Location<input maxLength={150} value={section.entries[0]?.location || ''} onChange={(event) => updateCustomEntry(section.id, { location: event.target.value || null })} /></label>
+                <label>URL<input type="url" maxLength={2048} value={section.entries[0]?.url || ''} onChange={(event) => updateCustomEntry(section.id, { url: event.target.value || null })} /></label>
+                <label className="field-wide">Description<textarea rows={3} maxLength={5000} value={section.entries[0]?.description || ''} onChange={(event) => updateCustomEntry(section.id, { description: event.target.value || null })} /></label>
+              </div>
+            </> : <>
+              <div className="builder-content-section-heading"><div><h2>{section.title}</h2><span>{section.entries.length} {section.entries.length === 1 ? 'entry' : 'entries'}</span></div><button type="button" onClick={() => setActiveTab('customize')}>＋ Add</button></div>
+              {section.entries.map((entry, index) => <article className="content-item" key={`${section.id}-${index}`}><div className="content-item-heading"><strong>{entry.title}</strong></div>{entry.description && <p>{entry.description}</p>}</article>)}
+            </>}
           </section>)}
         </div>}
         <button type="button" className="builder-add-content" onClick={() => setAddContentOpen(true)}><span>＋</span>Add Content</button>
+        <div className="builder-save-resume"><span>{hasPendingChanges ? 'Your latest changes are still a draft.' : 'Save your resume when you are ready.'}</span><button type="button" className="button button-primary" disabled={saving || busy || (formType !== null && !editId)} onClick={() => void saveResumeDraft()}>{saving ? 'Saving resume…' : 'Save resume'}</button></div>
       </section>
-      <ResumeDocumentPreview resume={resume} profile={profile} records={records} sections={sections} />
+      <ResumeDocumentPreview resume={{ ...resume, custom_sections: customSectionsDraft }} profile={{ ...profile, summary: summaryOpen ? summaryDraft : profile.summary }} records={records} sections={sections} pendingRecords={pendingRecords} />
     </div>}
 
     {activeTab === 'customize' && <div className="builder-customize-content">
       <div className="builder-customize-heading"><div><span className="eyebrow">RESUME BUILDER</span><h1>Customize your resume</h1><p>Update your details, design, and the order of your sections.</p></div><button type="button" className="resume-flow-secondary" onClick={() => setActiveTab('content')}>← Back to content</button></div>
-      <ResumeCustomizationPanel resume={resume} profile={profile} onResumeUpdated={onResumeUpdated} onProfileChanged={onProfileChanged} />
+      <ResumeCustomizationPanel
+        resume={resume}
+        profile={profile}
+        onResumeUpdated={(updated) => {
+          onResumeUpdated(updated)
+          if (!pendingCustomSectionIds.length) setCustomSectionsDraft(updated.custom_sections || [])
+        }}
+        onProfileChanged={(updated) => {
+          onProfileChanged(updated)
+          if (!summaryOpen) setSummaryDraft(updated.summary || '')
+        }}
+      />
       <section className="panel layout-panel"><div className="panel-title"><div><h2>Sections and order</h2><p>Choose visible sections, then arrange them in your preferred order.</p></div><button className="button button-secondary" disabled={saving} onClick={saveLayout}>{saving ? 'Saving…' : 'Save layout'}</button></div>
         <div className="section-toggles">{sectionInfo.map(({ type, title }) => <label className="check-label" key={type}><input type="checkbox" checked={visibleTypes.has(type)} onChange={() => toggleSection(type)} />{title}</label>)}</div>
         <div className="order-list">{sections.map((section, index) => <div className="order-row" key={section.section_type}><span className="order-index">{String(index + 1).padStart(2, '0')}</span><strong>{sectionInfo.find((entry) => entry.type === section.section_type)?.title}</strong><span className="muted">{section.items.length} selected</span><button className="icon-button" disabled={index === 0} onClick={() => moveSection(index, -1)} aria-label="Move section up">↑</button><button className="icon-button" disabled={index === sections.length - 1} onClick={() => moveSection(index, 1)} aria-label="Move section down">↓</button></div>)}</div>
@@ -439,7 +628,7 @@ export default function ResumeBuilderPage({ resume, profile, onPreview, onResume
       </section>
     </div>}
 
-    {formType && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeForm() }}><form className="modal-card" onSubmit={(event) => void submitRecord(event)}><div className="panel-title"><div><span className="eyebrow">{editId ? 'EDIT CONTENT' : 'ADD CONTENT'}</span><h2>{sectionInfo.find((entry) => entry.type === formType)?.title}</h2></div><button type="button" className="icon-button" onClick={closeForm} aria-label="Close">×</button></div><div className="form-grid">{fieldsByType[formType].map((field) => <label key={field.name} className={field.type === 'textarea' ? 'field-wide' : field.type === 'checkbox' ? 'check-label' : ''}>{field.type === 'checkbox' ? <><input type="checkbox" checked={Boolean(draft[field.name])} onChange={(event) => setDraft({ ...draft, [field.name]: event.target.checked })} />{field.label}</> : <>{field.label}{field.type === 'textarea' ? <><textarea rows={3} maxLength={field.maxLength} value={String(draft[field.name] || '')} onChange={(event) => setDraft({ ...draft, [field.name]: event.target.value })} /><span className="field-hint">{String(draft[field.name] || '').length}/{field.maxLength} characters</span></> : <input required={field.required} type={field.type || 'text'} min={field.type === 'number' ? 0 : field.required ? 2 : undefined} max={field.type === 'number' ? 60 : undefined} step={field.type === 'number' ? 1 : undefined} minLength={field.required && field.type !== 'date' ? 2 : undefined} maxLength={field.maxLength} value={String(draft[field.name] || '')} onChange={(event) => setDraft({ ...draft, [field.name]: event.target.value })} />}</>}</label>)}</div>{fieldError && <div className="notice notice-error field-validation-error" role="alert">{fieldError}</div>}<div className="form-actions"><button type="button" className="button button-secondary" onClick={closeForm}>Cancel</button><button className="button button-primary" disabled={saving}>{saving ? 'Saving…' : editId ? 'Save changes' : 'Add to resume'}</button></div></form></div>}
+    {formType && editId && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeForm() }}>{recordForm(false)}</div>}
   </div>
 }
 
@@ -455,11 +644,25 @@ function summaryFor(type: SectionType, item: SectionRecord): string {
   return fields[type].map((key) => item[key]).filter((value) => value !== null && value !== undefined && value !== '').join(' · ')
 }
 
-function ResumeDocumentPreview({ resume, profile, records, sections }: {
+function pendingRecordLabel(item: PendingRecord): string {
+  const keys: Record<SectionType, string> = {
+    education: 'degree',
+    work_experience: 'job_title',
+    technical_skill: 'skill_name',
+    project: 'project_name',
+    certification: 'certification_name',
+    achievement: 'title',
+  }
+  const label = item.fields[keys[item.type]]
+  return typeof label === 'string' && label.trim() ? label : `New ${sectionInfo.find((entry) => entry.type === item.type)?.title || 'resume'} entry`
+}
+
+function ResumeDocumentPreview({ resume, profile, records, sections, pendingRecords }: {
   resume: Resume
   profile: CareerProfile
   records: ItemMap
   sections: ResumeSection[]
+  pendingRecords: PendingRecord[]
 }) {
   const included = sections.map((section) => ({
     section,
@@ -468,7 +671,7 @@ function ResumeDocumentPreview({ resume, profile, records, sections }: {
       .sort((first, second) => first.display_order - second.display_order)
       .map((item) => records[section.section_type].find((record) => record.id === item.item_id))
       .filter((item): item is SectionRecord => Boolean(item)),
-  })).filter((entry) => entry.items.length > 0)
+  })).filter((entry) => entry.items.length > 0 || pendingRecords.some((item) => item.type === entry.section.section_type))
 
   return <aside className={`builder-preview-panel ${resume.template_name}`}>
     <article className="builder-resume-paper">
@@ -481,6 +684,7 @@ function ResumeDocumentPreview({ resume, profile, records, sections }: {
       {included.map(({ section, items }) => <section className="builder-paper-section" key={section.section_type}>
         <h3>{sectionInfo.find((entry) => entry.type === section.section_type)?.title}</h3>
         {items.map((item) => <div className="builder-paper-entry" key={item.id}><strong>{recordLabel(section.section_type, item)}</strong><span>{summaryFor(section.section_type, item)}</span></div>)}
+        {pendingRecords.filter((item) => item.type === section.section_type).map((item) => <div className="builder-paper-entry" key={item.id}><strong>{pendingRecordLabel(item)}</strong><span>{Object.entries(item.fields).filter(([key, value]) => key !== 'is_current' && key !== 'does_not_expire' && value !== null && value !== '').map(([, value]) => String(value)).join(' · ')}</span></div>)}
       </section>)}
       {(resume.custom_sections || []).filter((section) => section.entries.length > 0).map((section) => <section className="builder-paper-section" key={section.id}>
         <h3>{section.title}</h3>

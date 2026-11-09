@@ -2994,6 +2994,114 @@ input[type='checkbox'] {
   background: linear-gradient(105deg, #00a7a2, #35c0aa 72%, #e8ba3b);
 }
 
+.builder-inline-record-form,
+.builder-summary-draft {
+  margin: 14px 0;
+  padding: 18px;
+}
+
+.builder-inline-record-form .panel-title,
+.builder-summary-draft .panel-title {
+  margin-bottom: 16px;
+}
+
+.builder-inline-record-form .form-grid,
+.builder-custom-entry-draft {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.builder-inline-record-form label,
+.builder-summary-draft label,
+.builder-custom-entry-draft label {
+  display: grid;
+  gap: 6px;
+  color: #625e68;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.builder-inline-record-form input:not([type='checkbox']),
+.builder-inline-record-form textarea,
+.builder-summary-draft textarea,
+.builder-custom-entry-draft input,
+.builder-custom-entry-draft textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #dedbe2;
+  border-radius: 6px;
+  color: #302d35;
+  background: #fff;
+  font: inherit;
+}
+
+.builder-inline-record-form textarea,
+.builder-summary-draft textarea,
+.builder-custom-entry-draft textarea {
+  resize: vertical;
+}
+
+.builder-custom-entry-draft {
+  margin-top: 12px;
+}
+
+.builder-custom-entry-draft .field-wide,
+.builder-inline-record-form .field-wide {
+  grid-column: 1 / -1;
+}
+
+.draft-content-item {
+  border-style: dashed;
+}
+
+.draft-item-label {
+  display: inline-block;
+  margin-top: 7px;
+  color: #817a88;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.builder-save-resume {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 22px 0 0;
+  padding: 14px;
+  border: 1px solid #dfece8;
+  border-radius: 10px;
+  background: #f7fbf9;
+}
+
+.builder-save-resume > span {
+  color: #696571;
+  font-size: 11px;
+}
+
+.builder-save-resume .button {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 700px) {
+  .builder-inline-record-form .form-grid,
+  .builder-custom-entry-draft {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .builder-inline-record-form .field-wide,
+  .builder-custom-entry-draft .field-wide {
+    grid-column: auto;
+  }
+
+  .builder-save-resume {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 .builder-edit-contact {
   background: linear-gradient(130deg, var(--mentor-teal), #23b8a7);
 }
