@@ -7,7 +7,7 @@ export async function getCareerProfiles(): Promise<CareerProfile[]> {
 
 export function updateCareerProfile(
   id: string,
-  payload: Partial<Pick<CareerProfile, 'full_name' | 'email' | 'phone' | 'city' | 'professional_title' | 'summary' | 'linkedin_url' | 'github_url' | 'portfolio_url'>>,
+  payload: Partial<Pick<CareerProfile, 'full_name' | 'email' | 'phone' | 'city' | 'professional_title' | 'summary' | 'linkedin_url' | 'github_url' | 'leetcode_url' | 'portfolio_url'>>,
 ): Promise<CareerProfile> {
   return apiRequest<CareerProfile>(`/career-profiles/${id}`, {
     method: 'PUT',

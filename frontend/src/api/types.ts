@@ -46,7 +46,7 @@ export interface CustomResumeSection {
 
 export interface ResumeDesignSettings {
   layout: 'single-column' | 'two-column'
-  font_family: 'Arial' | 'Georgia' | 'Inter' | 'Tahoma'
+  font_family: 'Arial' | 'Georgia' | 'Inter' | 'Roboto' | 'Tahoma'
   font_size: number
   spacing: 'compact' | 'comfortable' | 'spacious'
   accent_color: string
@@ -73,6 +73,7 @@ export interface CareerProfile {
   summary: string | null
   linkedin_url: string | null
   github_url: string | null
+  leetcode_url: string | null
   portfolio_url: string | null
   created_at: string
   updated_at: string
@@ -107,6 +108,8 @@ export type ResumeCreate = Pick<Resume, 'title'> & {
   target_role?: string
   template_name?: ResumeTemplate
   is_primary?: boolean
+  design_settings?: ResumeDesignSettings
+  section_order?: SectionType[]
 }
 export type ResumeUpdate = Partial<
   Pick<Resume, 'title' | 'target_role' | 'template_name' | 'is_primary' | 'custom_sections' | 'design_settings' | 'section_order'>

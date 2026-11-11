@@ -14,18 +14,23 @@ Set `VITE_API_BASE_URL` in `frontend/.env` to the backend `/api/v1` URL.
   keyword analysis. AI can suggest and stage changes for a selected weakness;
   final changes can update the existing resume or be saved as one of up to two
   copies.
-- **Resume builder:** create a resume directly, build it from sections,
-  edit contact details and summary, add standard or custom sections, and
-  customize the template, one/two-column layout, font, accent color, spacing,
-  page size, and section order. Preview and download it as PDF or DOCX. No
+- **Resume builder:** choose a student, fresher, or experienced pathway; start
+  from one of four ATS-first templates or import a PDF/DOCX (up to 5 MB); then
+  edit personal information (including GitHub and LeetCode links), education,
+  skills, experience, projects, certifications, and achievements beside a live
+  preview. Entries can be
+  reordered and removed with a short undo window. Changes autosave. The editor
+  includes accent, font, spacing, and single-page-fit controls, a target-JD
+  matcher, an ATS preflight action, and PDF, plain-text, and JSON exports. No
   separate career-profile setup is needed.
 - **JD resume update:** upload a resume or choose a saved one, provide a job
   description, then accept/reject and apply suggestions individually. Applied
   changes remain resume-specific and can be saved to the existing version or
   as one of up to two copies.
 
-Uploads are limited to 10 MB. Text is extracted from selectable PDF text,
-DOCX paragraphs/tables, or UTF-8 TXT files; scanned image-only PDFs are not
+The resume builder limits imports to 5 MB; other resume workflows accept files
+up to 10 MB. Text is extracted from selectable PDF text, DOCX
+paragraphs/tables, or UTF-8 TXT files; scanned image-only PDFs are not
 OCR-processed.
 
 Before starting the backend, install the repository requirements and apply

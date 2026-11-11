@@ -64,6 +64,11 @@ class CareerProfile(Base):
         nullable=True,
     )
 
+    leetcode_url: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+
     portfolio_url: Mapped[str | None] = mapped_column(
         String(500),
         nullable=True,

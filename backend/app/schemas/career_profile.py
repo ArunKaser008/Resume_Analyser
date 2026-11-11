@@ -19,6 +19,7 @@ class CareerProfileCreate(BaseModel):
     summary: str | None = Field(default=None, max_length=5000)
     linkedin_url: HttpUrl | None = None
     github_url: HttpUrl | None = None
+    leetcode_url: HttpUrl | None = None
     portfolio_url: HttpUrl | None = None
 
 
@@ -32,6 +33,7 @@ class CareerProfileUpdate(BaseModel):
     summary: str | None = Field(default=None, max_length=5000)
     linkedin_url: HttpUrl | None = None
     github_url: HttpUrl | None = None
+    leetcode_url: HttpUrl | None = None
     portfolio_url: HttpUrl | None = None
 
 
@@ -48,6 +50,7 @@ class CareerProfileResponse(BaseModel):
     summary: str | None
     linkedin_url: str | None
     github_url: str | None
+    leetcode_url: str | None
     portfolio_url: str | None
     created_at: datetime
     updated_at: datetime

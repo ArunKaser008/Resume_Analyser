@@ -8,7 +8,6 @@ import type { CareerProfile, Resume } from './api/types'
 import AnalysisPage from './features/ats-analysis/AnalysisPage'
 import OptimizationPage from './features/ai-optimization/OptimizationPage'
 import ResumeBuilderPage from './features/resume-builder/ResumeBuilderPage'
-import ResumeLibraryPage from './features/resume-builder/ResumeLibraryPage'
 import ResumePreviewPage from './features/resume-builder/ResumePreviewPage'
 
 type Page = 'ats' | 'builder' | 'builder-edit' | 'preview' | 'optimization' | 'tailoring'
@@ -85,10 +84,6 @@ function App() {
     if (page === 'optimization') return 'AI suggestions'
     return navigation.find((entry) => entry.id === page)?.label || 'JD resume update'
   }, [page])
-  const openBuilder = (resume: Resume) => {
-    setSelectedResume(resume)
-    navigate('builder-edit')
-  }
   const openPreview = (resume: Resume) => {
     setSelectedResume(resume)
     navigate('preview')
@@ -103,9 +98,6 @@ function App() {
     setAnalysisResumeId(resumeId)
     navigate('ats')
   }
-  const selectedProfile = selectedResume
-    ? profiles.find((profile) => profile.id === selectedResume.career_profile_id) || null
-    : null
   const activeFeature = page === 'builder-edit' || page === 'preview'
     ? 'builder'
     : page === 'optimization'
@@ -132,10 +124,19 @@ function App() {
         {error && <div className="notice notice-error global-notice" role="alert"><span>{error}</span><button className="text-button" onClick={() => void refreshWorkspace().catch((cause: unknown) => setError(getErrorMessage(cause)))}>Retry</button></div>}
         {loading ? <div className="panel empty-state loading-panel"><span className="spinner" /><p>Loading resumes…</p></div> : <>
           {page === 'ats' && <AnalysisPage key={analysisResumeId || 'upload'} resumes={resumes} initialResumeId={analysisResumeId || undefined} onResumeImported={handleResumeImported} onResumeFinalized={handleResumeImported} />}
-          {page === 'builder' && <ResumeLibraryPage resumes={resumes} onChanged={refreshWorkspace} onBuild={openBuilder} onPreview={openPreview} />}
-          {page === 'builder-edit' && (selectedResume && selectedProfile
-            ? <ResumeBuilderPage resume={selectedResume} profile={selectedProfile} onPreview={() => openPreview(selectedResume)} onResumeUpdated={(resume) => { setSelectedResume(resume); setResumes((current) => current.map((item) => item.id === resume.id ? resume : item)) }} onProfileChanged={(profile) => setProfiles((current) => current.map((item) => item.id === profile.id ? profile : item))} onResumeChanged={(resume) => { setSelectedResume(resume); navigate('builder') }} />
-            : <SelectionEmpty title="Select a resume to edit" description="Choose a resume in the builder to add and organize sections." onClick={() => navigate('builder')} button="Open resume builder" />)}
+          {(page === 'builder' || page === 'builder-edit') && <ResumeBuilderPage
+            resumes={resumes}
+            profiles={profiles}
+            initialResume={page === 'builder-edit' ? selectedResume || undefined : undefined}
+            onChanged={refreshWorkspace}
+            onResumeUpdated={(resume) => {
+              setSelectedResume(resume)
+              setResumes((current) => current.map((item) => item.id === resume.id ? resume : item))
+            }}
+            onProfileChanged={(profile) => setProfiles((current) => current.map((item) => item.id === profile.id ? profile : item))}
+            onPreview={openPreview}
+            onAnalyze={openAnalyzer}
+          />}
           {page === 'preview' && (selectedResume
             ? <ResumePreviewPage resume={selectedResume} onResumeChanged={(resume) => { setSelectedResume(resume); setResumes((current) => current.map((item) => item.id === resume.id ? resume : item)) }} onBack={() => navigate('builder-edit')} />
             : <SelectionEmpty title="Select a resume to preview" description="Choose a resume in the builder to preview or download it." onClick={() => navigate('builder')} button="Open resume builder" />)}

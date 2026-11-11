@@ -24,6 +24,7 @@ def test_design_settings_enforce_supported_values_and_ranges():
     assert settings.layout == "two-column"
     assert settings.font_size == 14
     assert settings.page_size == "Letter"
+    assert ResumeDesignSettings(font_family="Roboto").font_family == "Roboto"
 
     with pytest.raises(ValidationError):
         ResumeDesignSettings(font_size=20)
