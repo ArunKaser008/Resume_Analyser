@@ -19,6 +19,7 @@ import ParsedDataPreview from './ParsedDataPreview'
 import ProofOfWorkDashboard from './ProofOfWorkDashboard'
 import ATSEmulatorView from './ATSEmulatorView'
 import ResumeUploader from './ResumeUploader'
+import DashboardPage from '../../pages/DashboardPage'
 
 const applicableFields = new Set([
   'summary',
@@ -206,6 +207,7 @@ export default function AnalysisPage({ resumes, profiles, initialResumeId, onRes
       <div className="form-footer"><span className="muted">Upload a resume for a baseline ATS readiness check.</span><button className="button button-primary" disabled={loading || !file}>{loading ? 'Analyzing…' : 'Analyze resume'}</button></div>
     </form>}
     {parseResult && <ParsedDataPreview key={parseResult.parse_id} result={parseResult} />}
+    {analyzedResumeId && <DashboardPage key={`dashboard-${analyzedResumeId}`} resumeId={analyzedResumeId} />}
     <ProofOfWorkDashboard key={parseResult?.parse_id || 'proof-of-work'} parsedData={parseResult?.parsed_data} />
     {currentResume && currentProfile && <ATSEmulatorView key={currentResume.id} resume={currentResume} profile={currentProfile} />}
     {initialResumeId && <section className="panel analysis-form"><p>Rechecking the selected resume, including any unsaved draft changes.</p><button className="button button-primary" disabled={loading} onClick={() => void analyze()}>{loading ? 'Analyzing…' : 'Recheck ATS score'}</button></section>}
