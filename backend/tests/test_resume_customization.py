@@ -9,29 +9,50 @@ from app.schemas.resume import (
     ResumeDesignSettings,
     ResumeUpdate,
 )
+from app.schemas.career_profile import CareerProfileCreate, CareerProfileUpdate
 from app.services.resume_preview_service import jinja_env
 
 
 def test_design_settings_enforce_supported_values_and_ranges():
     settings = ResumeDesignSettings(
         layout="two-column",
-        font_size=14,
+        font_size=10.5,
         spacing="compact",
         accent_color="#2A7BB8",
         page_size="Letter",
     )
 
     assert settings.layout == "two-column"
-    assert settings.font_size == 14
+    assert settings.font_size == 10.5
     assert settings.page_size == "Letter"
     assert ResumeDesignSettings(font_family="Roboto").font_family == "Roboto"
+    assert ResumeDesignSettings(font_family="Merriweather").font_family == "Merriweather"
 
     with pytest.raises(ValidationError):
-        ResumeDesignSettings(font_size=20)
+        ResumeDesignSettings(font_size=14)
+    with pytest.raises(ValidationError):
+        ResumeDesignSettings(font_size=9)
     with pytest.raises(ValidationError):
         ResumeDesignSettings(accent_color="blue")
     with pytest.raises(ValidationError):
         ResumeDesignSettings(font_family="Comic Sans")
+    with pytest.raises(ValidationError):
+        ResumeDesignSettings(font_family="Tahoma")
+
+
+def test_leetcode_profile_url_is_validated_and_rendered():
+    url = "https://leetcode.com/u/alex-example/"
+    profile = CareerProfileCreate(
+        profile_type="fresher",
+        full_name="Alex Example",
+        leetcode_url=url,
+    )
+    update = CareerProfileUpdate(leetcode_url=url)
+
+    assert str(profile.leetcode_url) == url
+    assert str(update.leetcode_url) == url
+    with pytest.raises(ValidationError):
+        CareerProfileUpdate(leetcode_url="not-a-url")
 
 
 def test_custom_section_limits_and_unique_ids_are_validated():
@@ -79,6 +100,7 @@ def test_custom_sections_and_design_settings_render_in_preview_template():
             city=None,
             linkedin_url=None,
             github_url=None,
+            leetcode_url="https://leetcode.com/u/alex-example/",
             portfolio_url=None,
             summary=None,
         ),
@@ -116,7 +138,7 @@ def test_custom_sections_and_design_settings_render_in_preview_template():
         design_settings=ResumeDesignSettings(
             layout="two-column",
             font_family="Georgia",
-            font_size=13,
+            font_size=10,
             spacing="spacious",
             accent_color="#123456",
             page_size="Letter",
@@ -125,6 +147,17 @@ def test_custom_sections_and_design_settings_render_in_preview_template():
 
     assert "Languages" in rendered
     assert "English" in rendered
+    assert "leetcode.com/u/alex-example" in rendered
     assert 'data-layout="two-column"' in rendered
     assert "8.5in" in rendered
     assert "#123456" in rendered
+    assert "font: 10px/1.3 Georgia" in rendered
+    assert "font-size: 22px" in rendered
+    assert "font-size: 13px" in rendered
+    assert "break-after: avoid-page" in rendered
+
+
+def test_url_alias_uses_domain_and_path_without_protocol():
+    from app.services.resume_preview_service import url_alias
+
+    assert url_alias("https://www.github.com/example/project/?tab=readme") == "github.com/example/project"

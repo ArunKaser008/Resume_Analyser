@@ -23,6 +23,8 @@ import type {
   SectionRecord,
   SectionType,
 } from '../../api/types'
+import { PersonalDetailsForm, ResumeEntryForm } from './ResumeBuilderForms'
+import { displayMonth, entryFormSchema, personalFormSchema, toApiDate, type PersonalFormValues } from './resumeValidation'
 import './modern-resume-builder.css'
 
 type Entry = { id: string; type: SectionType; fields: Record<string, string | number | boolean | null> }
@@ -52,6 +54,16 @@ const templatePresets: { id: Resume['template_name']; name: string; description:
   { id: 'minimal', name: 'Tech Minimalist', description: 'Compact, monochrome and ATS-first.', layout: 'single-column' },
   { id: 'executive', name: 'Modern Executive', description: 'Metrics-focused with professional spacing.', layout: 'single-column' },
   { id: 'atlantic-blue', name: 'Dual-Column Compact', description: 'Sidebar for skills and contact details.', layout: 'two-column' },
+]
+const accentPalettes = [
+  { name: 'Navy', color: '#1F3A5F' },
+  { name: 'Charcoal', color: '#343A40' },
+  { name: 'Slate', color: '#52677C' },
+  { name: 'Emerald', color: '#1F7A5A' },
+  { name: 'Burgundy', color: '#7A263A' },
+] as const
+const approvedFonts: ResumeDesignSettings['font_family'][] = [
+  'Inter', 'Roboto', 'Helvetica', 'Arial', 'Georgia', 'Garamond', 'Merriweather',
 ]
 const emptyEntries = (): Record<SectionType, Entry[]> => ({
   education: [],
@@ -132,7 +144,7 @@ function toEntry(type: SectionType, record: SectionRecord): Entry {
   for (const { key } of displayFields[type]) {
     const value = record[key]
     fields[key] = typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' || value === null
-      ? value
+      ? key.endsWith('_date') ? displayMonth(String(value || '')) : value
       : ''
   }
   if ('is_current' in record) fields.is_current = Boolean(record.is_current)
@@ -142,6 +154,33 @@ function toEntry(type: SectionType, record: SectionRecord): Entry {
 
 function isComplete(entry: Entry): boolean {
   return requiredFields[entry.type].every((field) => String(entry.fields[field] ?? '').trim().length > 0)
+}
+
+function getValidationIssues(master: MasterResume): string[] {
+  const personal = personalFormSchema.safeParse({
+    full_name: master.profile.full_name,
+    professional_title: master.profile.professional_title || '',
+    email: master.profile.email || '',
+    phone: master.profile.phone || '',
+    city: master.profile.city || '',
+    summary: master.profile.summary || '',
+    linkedin_url: master.profile.linkedin_url || '',
+    github_url: master.profile.github_url || '',
+    leetcode_url: master.profile.leetcode_url || '',
+    portfolio_url: master.profile.portfolio_url || '',
+  })
+  const issues = personal.success ? [] : personal.error.issues.map((issue) => issue.message)
+  for (const type of sectionTypes) {
+    for (const entry of master.entries[type]) {
+      const result = entryFormSchema(type, master.profile.profile_type).safeParse(entry.fields)
+      if (result.success) continue
+      for (const issue of result.error.issues) {
+        if (!isComplete(entry) && issue.message === 'This field is required.') continue
+        issues.push(issue.message)
+      }
+    }
+  }
+  return [...new Set(issues)]
 }
 
 function rekeyDraftEntries(master: MasterResume, savedIds: Map<string, string>): MasterResume {
@@ -169,11 +208,16 @@ function recordPayload(entry: Entry): Record<string, unknown> {
   const payload: Record<string, unknown> = {}
   for (const field of displayFields[entry.type]) {
     const value = entry.fields[field.key]
-    payload[field.key] = value === '' ? null : value
+    payload[field.key] = field.key.endsWith('_date') && typeof value === 'string'
+      ? toApiDate(value)
+      : value === '' ? null : value
   }
   if (entry.type === 'education' || entry.type === 'work_experience') {
     payload.is_current = Boolean(entry.fields.is_current)
-    if (payload.is_current) payload.end_date = null
+    if (payload.is_current || String(entry.fields.end_date || '').toLowerCase() === 'present') {
+      payload.is_current = true
+      payload.end_date = null
+    }
   }
   if (entry.type === 'certification') {
     payload.does_not_expire = Boolean(entry.fields.does_not_expire)
@@ -231,19 +275,30 @@ export default function ResumeBuilderPage({
   const currentMasterRef = useRef<MasterResume | null>(null)
   const loadedResumeId = useRef('')
 
-  const wordCount = useMemo(() => {
-    if (!master) return 0
-    const pieces = [
-      master.profile.summary || '',
-      ...sectionTypes.flatMap((type) => master.entries[type].flatMap((entry) => Object.values(entry.fields).filter((value) => typeof value === 'string'))),
-    ]
-    return pieces.join(' ').trim().split(/\s+/).filter(Boolean).length
-  }, [master])
-  const pageCount = Math.max(1, Math.ceil(wordCount / 550))
+  const [pageCount, setPageCount] = useState(1)
+  const previewPaperRef = useRef<HTMLElement>(null)
   const baseFontSize = master?.resume.design_settings.font_size ?? 11
   const previewFontSize = autoFit && pageCount > 1
-    ? Math.max(9, baseFontSize - Math.min(2, pageCount - 1))
+    ? Math.max(9.5, baseFontSize - 0.5)
     : baseFontSize
+  const validationIssues = useMemo(() => master ? getValidationIssues(master) : [], [master])
+
+  useEffect(() => {
+    const paper = previewPaperRef.current
+    if (!paper) return
+    const measure = () => setPageCount(Math.max(1, Math.ceil(paper.scrollHeight / 1120)))
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
+    const mutations = new MutationObserver(measure)
+    observer?.observe(paper)
+    mutations.observe(paper, { childList: true, subtree: true, characterData: true })
+    window.addEventListener('resize', measure)
+    measure()
+    return () => {
+      observer?.disconnect()
+      mutations.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [master, autoFit, showStyles])
 
   useEffect(() => {
     currentMasterRef.current = master
@@ -273,16 +328,29 @@ export default function ResumeBuilderPage({
           .filter((record): record is SectionRecord => Boolean(record))
           .map((record) => toEntry(type, record))
       })
-      const next = { resume, profile, entries }
+      const safeResume = {
+        ...resume,
+        design_settings: {
+          ...resume.design_settings,
+          font_family: approvedFonts.includes(resume.design_settings.font_family)
+            ? resume.design_settings.font_family
+            : 'Arial',
+          font_size: 10,
+          accent_color: accentPalettes.some((palette) => palette.color === resume.design_settings.accent_color)
+            ? resume.design_settings.accent_color
+            : '#52677C',
+        },
+      }
+      const next = { resume: safeResume, profile, entries }
       setMaster(next)
       currentMasterRef.current = next
       lastSaved.current = JSON.stringify(next)
       loadedResumeId.current = resume.id
       setPersona(profile.profile_type)
       setFullName(profile.full_name)
-      setNewTitle(resume.title)
-      setNewRole(resume.target_role || '')
-      setSelectedTemplate(resume.template_name)
+      setNewTitle(safeResume.title)
+      setNewRole(safeResume.target_role || '')
+      setSelectedTemplate(safeResume.template_name)
       setActiveResumeId(resume.id)
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : cause instanceof Error ? cause.message : 'Unable to load this resume.')
@@ -297,9 +365,13 @@ export default function ResumeBuilderPage({
   }, [initialResume, loadResume])
 
   const persist = useCallback(async function persistSnapshot(snapshot: MasterResume) {
+    if (getValidationIssues(snapshot).length > 0) {
+      setError('Fix the highlighted validation issues before saving or exporting.')
+      return false
+    }
     if (saveLock.current) {
       queuedState.current = snapshot
-      return
+      return false
     }
     saveLock.current = true
     setSaving(true)
@@ -365,6 +437,7 @@ export default function ResumeBuilderPage({
       onResumeUpdated(savedResume)
       onProfileChanged(savedProfile)
       setNotice('All complete changes are saved automatically.')
+      return true
     } catch (cause) {
       if (persistedIds.size > 0) {
         setMaster((current) => {
@@ -375,6 +448,7 @@ export default function ResumeBuilderPage({
         })
       }
       setError(cause instanceof ApiError ? cause.message : cause instanceof Error ? cause.message : 'Autosave failed. Your editor state is preserved.')
+      return false
     } finally {
       saveLock.current = false
       setSaving(false)
@@ -423,9 +497,9 @@ export default function ResumeBuilderPage({
         design_settings: {
           layout: templatePresets.find((template) => template.id === selectedTemplate)?.layout || 'single-column',
           font_family: 'Inter',
-          font_size: 11,
+          font_size: 10,
           spacing: 'comfortable',
-          accent_color: '#147f89',
+          accent_color: '#52677C',
           page_size: 'A4',
         },
         section_order: sectionOrders[persona],
@@ -589,10 +663,15 @@ export default function ResumeBuilderPage({
 
   const exportPdf = async (format: 'pdf' | 'docx') => {
     if (!master) return
+    if (validationIssues.length > 0) {
+      setError('Fix the highlighted validation issues before exporting.')
+      return
+    }
     setLoading(true)
     setError('')
     try {
-      await persist(master)
+      const saved = await persist(master)
+      if (!saved) return
       const blob = format === 'pdf' ? await downloadResume(master.resume.id) : await downloadResumeDocx(master.resume.id)
       downloadBlob(blob, `${safeFileName(master.resume.title)}.${format}`)
     } catch (cause) {
@@ -640,10 +719,7 @@ export default function ResumeBuilderPage({
 
   const renderWorkspace = () => {
     if (!master) return null
-    const updateProfileField = (
-      field: 'full_name' | 'professional_title' | 'email' | 'phone' | 'city' | 'linkedin_url' | 'github_url' | 'leetcode_url' | 'portfolio_url' | 'summary',
-      value: string,
-    ) => {
+    const updateProfileField = (field: keyof PersonalFormValues, value: string) => {
       if (field === 'full_name') {
         patchMaster({ profile: { ...master.profile, full_name: value } })
         return
@@ -665,7 +741,7 @@ export default function ResumeBuilderPage({
     }
     const groupTypes = sectionOrders[master.profile.profile_type]
     const skills = master.entries.technical_skill.filter(isComplete)
-    const contact = [master.profile.email, master.profile.phone, master.profile.city, master.profile.linkedin_url, master.profile.github_url, master.profile.leetcode_url, master.profile.portfolio_url].filter(Boolean)
+    const contact = [master.profile.email, master.profile.phone, master.profile.city, master.profile.linkedin_url, master.profile.github_url, master.profile.leetcode_url, master.profile.portfolio_url].filter((item): item is string => Boolean(item))
 
     return <div className="modern-builder-workspace">
       <header className="modern-builder-toolbar">
@@ -675,15 +751,19 @@ export default function ResumeBuilderPage({
         <button type="button" className="mb-quiet-button" onClick={() => setShowStyles((value) => !value)}>Styles</button>
         <button type="button" className="mb-quiet-button" onClick={() => setShowMatcher((value) => !value)}>Match a JD</button>
         <button type="button" className="mb-primary-button" onClick={() => onAnalyze(master.resume.id)}>ATS check</button>
-        <button type="button" className="mb-primary-button" disabled={loading || saving} onClick={() => void exportPdf('pdf')}>Export PDF</button>
+        <button type="button" className="mb-primary-button" disabled={loading || saving || validationIssues.length > 0} onClick={() => void exportPdf('pdf')} aria-describedby={validationIssues.length ? 'mb-validation-summary' : undefined}>Export PDF</button>
         <button type="button" className="mb-more-button" aria-label="More export options" onClick={exportText}>TXT</button>
         <button type="button" className="mb-more-button" onClick={exportJson}>JSON</button>
       </header>
+      {validationIssues.length > 0 && <div className="mb-validation-summary" id="mb-validation-summary" role="status">
+        Resolve the highlighted fields before exporting. {validationIssues[0]}
+      </div>}
       {showStyles && <section className="mb-style-drawer" aria-label="Resume style controls">
         <div><h2>Style and template</h2><button className="mb-quiet-button" onClick={() => setShowStyles(false)}>Close</button></div>
         <div className="mb-template-options">{templatePresets.map((template) => <button key={template.id} className={master.resume.template_name === template.id ? 'selected' : ''} onClick={() => chooseTemplate(template.id)}><strong>{template.name}</strong><span>{template.description}</span></button>)}</div>
-        <label>Accent color<input type="color" value={master.resume.design_settings.accent_color} onChange={(event) => patchMaster({ resume: { ...master.resume, design_settings: { ...master.resume.design_settings, accent_color: event.target.value } } })} /></label>
-        <label>Font<select value={master.resume.design_settings.font_family} onChange={(event) => patchMaster({ resume: { ...master.resume, design_settings: { ...master.resume.design_settings, font_family: event.target.value as ResumeDesignSettings['font_family'] } } })}><option>Inter</option><option>Roboto</option><option>Arial</option><option>Georgia</option><option>Tahoma</option></select></label>
+        <label>Accent palette<select value={master.resume.design_settings.accent_color} onChange={(event) => patchMaster({ resume: { ...master.resume, design_settings: { ...master.resume.design_settings, accent_color: event.target.value } } })}>{accentPalettes.map((palette) => <option key={palette.name} value={palette.color}>{palette.name}</option>)}</select></label>
+        <span className="mb-palette-preview" style={{ backgroundColor: master.resume.design_settings.accent_color }} aria-label="Selected accent color" />
+        <label>Font<select value={master.resume.design_settings.font_family} onChange={(event) => patchMaster({ resume: { ...master.resume, design_settings: { ...master.resume.design_settings, font_family: event.target.value as ResumeDesignSettings['font_family'] } } })}>{approvedFonts.map((font) => <option key={font} value={font}>{font}</option>)}</select></label>
         <label>Spacing<select value={master.resume.design_settings.spacing} onChange={(event) => patchMaster({ resume: { ...master.resume, design_settings: { ...master.resume.design_settings, spacing: event.target.value as ResumeDesignSettings['spacing'] } } })}><option value="compact">Compact</option><option value="comfortable">Comfortable</option><option value="spacious">Spacious</option></select></label>
         <label className="mb-toggle"><input type="checkbox" checked={autoFit} onChange={(event) => setAutoFit(event.target.checked)} />Single-page guardrail</label>
       </section>}
@@ -698,19 +778,13 @@ export default function ResumeBuilderPage({
           <div className="mb-editor-heading"><div><span className="mb-eyebrow">MASTER RESUME</span><h1>Build your story</h1><p>Changes are reflected in the live preview and autosaved.</p></div><button className="mb-add-entry" onClick={() => addEntry(persona === 'student' ? 'education' : persona === 'fresher' ? 'project' : 'work_experience')}>＋ Add section</button></div>
           <details className="mb-accordion" open={expanded === 'personal'} onToggle={(event) => { if ((event.currentTarget as HTMLDetailsElement).open) setExpanded('personal') }}>
             <summary><span>Personal information</span><small>Name, contact and professional summary</small></summary>
-            <div className="mb-form-grid">
-              <label>Full name<input value={master.profile.full_name} onChange={(event) => updateProfileField('full_name', event.target.value)} /></label>
-              <label>Professional title<input value={master.profile.professional_title || ''} placeholder="e.g. Computer Science Student" onChange={(event) => updateProfileField('professional_title', event.target.value)} /></label>
-              <label>Email<input type="email" value={master.profile.email || ''} onChange={(event) => updateProfileField('email', event.target.value)} /></label>
-              <label>Phone<input value={master.profile.phone || ''} onChange={(event) => updateProfileField('phone', event.target.value)} /></label>
-              <label>City / location<input value={master.profile.city || ''} onChange={(event) => updateProfileField('city', event.target.value)} /></label>
-              <label>LinkedIn<input value={master.profile.linkedin_url || ''} onChange={(event) => updateProfileField('linkedin_url', event.target.value)} /></label>
-              <label>GitHub<input value={master.profile.github_url || ''} onChange={(event) => updateProfileField('github_url', event.target.value)} /></label>
-              <label>LeetCode<input value={master.profile.leetcode_url || ''} onChange={(event) => updateProfileField('leetcode_url', event.target.value)} /></label>
-              <label>Portfolio<input value={master.profile.portfolio_url || ''} onChange={(event) => updateProfileField('portfolio_url', event.target.value)} /></label>
-              <label className="mb-field-wide">Target role<input value={master.resume.target_role || ''} placeholder="What role are you targeting?" onChange={(event) => updateResumeField('target_role', event.target.value)} /></label>
-              <label className="mb-field-wide">Professional summary<textarea rows={4} maxLength={5000} value={master.profile.summary || ''} onChange={(event) => updateProfileField('summary', event.target.value)} placeholder="Summarize your strengths, direction, or professional impact." /></label>
-            </div>
+            <PersonalDetailsForm
+              key={master.resume.id}
+              profile={master.profile}
+              targetRole={master.resume.target_role || ''}
+              onProfileChange={updateProfileField}
+              onTargetRoleChange={(value) => updateResumeField('target_role', value)}
+            />
           </details>
           {groupTypes.map((type) => <details className="mb-accordion" key={type} open={expanded === type} onToggle={(event) => { if ((event.currentTarget as HTMLDetailsElement).open) setExpanded(type) }}>
             <summary><span>{sectionLabels[type]}</span><small>{master.entries[type].filter(isComplete).length} entries</small></summary>
@@ -730,15 +804,13 @@ export default function ResumeBuilderPage({
                   <button type="button" className="mb-move-entry" aria-label={`Move ${entryTitle(entry)} down`} disabled={entryIndex === master.entries[type].length - 1} onClick={() => moveEntry(type, entry.id, 1)}>↓</button>
                   <button type="button" className="mb-delete-entry" aria-label={`Remove ${entryTitle(entry)}`} onClick={() => removeEntry(type, entry)}>Remove</button>
                 </div>
-                <div className="mb-form-grid">{displayFields[type].map(({ key, label, multiline }) => {
-                  const value = entry.fields[key]
-                  const required = requiredFields[type].includes(key)
-                  const numeric = key === 'years_of_experience'
-                  return <label key={key} className={multiline ? 'mb-field-wide' : ''}>{label}{multiline
-                    ? <textarea rows={3} value={String(value || '')} onChange={(event) => updateEntry(type, entry.id, key, event.target.value)} />
-                    : <input type={numeric ? 'number' : key.includes('date') ? 'date' : key.endsWith('_url') ? 'url' : 'text'} required={required} min={numeric ? 0 : undefined} value={value == null ? '' : String(value)} onChange={(event) => updateEntry(type, entry.id, key, numeric ? (event.target.value === '' ? null : Number(event.target.value)) : event.target.value)} />}
-                  </label>
-                })}</div>
+                <ResumeEntryForm
+                  key={entry.id}
+                  entry={entry}
+                  profileType={master.profile.profile_type}
+                  fields={displayFields[type]}
+                  onUpdate={(key, value) => updateEntry(type, entry.id, key, value)}
+                />
                 {(type === 'work_experience' || type === 'education') && <label className="mb-toggle"><input type="checkbox" checked={Boolean(entry.fields.is_current)} onChange={(event) => updateEntry(type, entry.id, 'is_current', event.target.checked)} />Current</label>}
                 {type === 'certification' && <label className="mb-toggle"><input type="checkbox" checked={Boolean(entry.fields.does_not_expire)} onChange={(event) => updateEntry(type, entry.id, 'does_not_expire', event.target.checked)} />Does not expire</label>}
               </article>)}
@@ -747,10 +819,11 @@ export default function ResumeBuilderPage({
             </div>
           </details>)}
         </section>
-        <aside className={`modern-builder-preview ${autoFit && pageCount > 1 ? 'has-overflow' : ''}`} aria-label="Live resume preview">
-          <div className="mb-preview-toolbar"><div><strong>Live preview</strong><span>{pageCount} {pageCount === 1 ? 'page' : 'pages'}{pageCount === 1 ? ' · ATS ready' : autoFit ? ' · Review page fit' : ''}</span></div><button className="mb-quiet-button" onClick={() => onPreview(master.resume)}>Full preview</button></div>
-          <article className={`mb-resume-paper ${master.resume.design_settings.layout === 'two-column' ? 'two-column' : ''}`} style={{ '--mb-accent': master.resume.design_settings.accent_color, '--mb-font': master.resume.design_settings.font_family, '--mb-font-size': `${previewFontSize}px`, '--mb-spacing': autoFit && pageCount > 1 ? '.55' : master.resume.design_settings.spacing === 'compact' ? '.55' : master.resume.design_settings.spacing === 'spacious' ? '1.35' : '1' } as CSSProperties}>
-            <header><h2>{master.profile.full_name || 'Your name'}</h2><p>{master.resume.target_role || master.profile.professional_title || 'Target role'}</p><small>{contact.join(' · ') || 'Email · Phone · Location · Links'}</small></header>
+        <aside className={`modern-builder-preview ${pageCount > 1 ? 'has-overflow' : ''}`} aria-label="Live resume preview">
+          <div className="mb-preview-toolbar"><div><strong>Live preview</strong><span>{pageCount} {pageCount === 1 ? 'page' : 'pages'}{pageCount === 1 ? ' · ATS ready' : autoFit ? ' · Auto-fit applied' : ' · Review page fit'}</span></div><button className="mb-quiet-button" onClick={() => onPreview(master.resume)}>Full preview</button></div>
+          {pageCount > 1 && master.profile.profile_type !== 'experienced' && <div className="mb-page-warning" role="status">Content exceeds 1 page (A4 safety limit)</div>}
+          <article ref={previewPaperRef} className={`mb-resume-paper ${master.resume.design_settings.layout === 'two-column' ? 'two-column' : ''}`} style={{ '--mb-accent': master.resume.design_settings.accent_color, '--mb-font': master.resume.design_settings.font_family, '--mb-font-size': `${previewFontSize * 4 / 3}px`, '--mb-spacing': autoFit && pageCount > 1 ? '.55' : master.resume.design_settings.spacing === 'compact' ? '.55' : master.resume.design_settings.spacing === 'spacious' ? '1.35' : '1' } as CSSProperties}>
+            <header><h1>{master.profile.full_name || 'Your name'}</h1><p>{master.resume.target_role || master.profile.professional_title || 'Target role'}</p><small>{contact.map((item) => formatUrlForDisplay(item)).join(' · ') || 'Email · Phone · Location · Links'}</small></header>
             {master.profile.summary && <section><h3>Profile</h3><p>{master.profile.summary}</p></section>}
             {groupTypes.map((type) => {
               const items = master.entries[type].filter(isComplete)
@@ -816,4 +889,14 @@ function downloadBlob(blobOrText: Blob | string, filename: string, mimeType?: st
 
 function safeFileName(value: string) {
   return value.trim().replace(/[^\w.-]+/g, '-') || 'resume'
+}
+
+function formatUrlForDisplay(value: string): string {
+  try {
+    const url = new URL(value)
+    if (!url.hostname.includes('.')) return value
+    return `${url.hostname.replace(/^www\./, '')}${url.pathname.replace(/\/$/, '')}`
+  } catch {
+    return value
+  }
 }

@@ -12,16 +12,16 @@
         {% if profile.city %}<span>{{ profile.city }}</span>{% endif %}
 
         {% if profile.linkedin_url %}
-            <a href="{{ profile.linkedin_url }}">LinkedIn</a>
+            <a href="{{ profile.linkedin_url }}">{{ profile.linkedin_url|url_alias }}</a>
         {% endif %}
         {% if profile.github_url %}
-            <a href="{{ profile.github_url }}">GitHub</a>
+            <a href="{{ profile.github_url }}">{{ profile.github_url|url_alias }}</a>
         {% endif %}
         {% if profile.leetcode_url %}
-            <a href="{{ profile.leetcode_url }}">LeetCode</a>
+            <a href="{{ profile.leetcode_url }}">{{ profile.leetcode_url|url_alias }}</a>
         {% endif %}
         {% if profile.portfolio_url %}
-            <a href="{{ profile.portfolio_url }}">Portfolio</a>
+            <a href="{{ profile.portfolio_url }}">{{ profile.portfolio_url|url_alias }}</a>
         {% endif %}
     </div>
 </header>
@@ -99,7 +99,7 @@
             <p class="description">{{ item.achievements }}</p>
         {% endif %}
         {% if item.project_url %}
-            <a href="{{ item.project_url }}">Project Link</a>
+            <a href="{{ item.project_url }}">{{ item.project_url|url_alias }}</a>
         {% endif %}
     </article>
     {% endfor %}
@@ -142,7 +142,7 @@
             <div class="meta">Issued: {{ item.issue_date.strftime('%b %Y') }}</div>
         {% endif %}
         {% if item.credential_url %}
-            <a href="{{ item.credential_url }}">View Credential</a>
+            <a href="{{ item.credential_url }}">{{ item.credential_url|url_alias }}</a>
         {% endif %}
     </article>
     {% endfor %}
@@ -181,7 +181,7 @@
         {% if item.date or item.url %}
             <div class="meta">
                 {{ item.date }}{% if item.date and item.url %} | {% endif %}
-                {% if item.url %}<a href="{{ item.url }}">Link</a>{% endif %}
+                {% if item.url %}<a href="{{ item.url }}">{{ item.url|url_alias }}</a>{% endif %}
             </div>
         {% endif %}
         {% if item.description %}

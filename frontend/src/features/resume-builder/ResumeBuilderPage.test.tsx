@@ -1,8 +1,9 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { CareerProfile, Resume } from '../../api/types'
+import type { CareerProfile, ProfileType, Resume } from '../../api/types'
 import ResumeBuilderPage from './ResumeBuilderPage'
+import { entryFormSchema, personalFormSchema, sanitizePhoneInput } from './resumeValidation'
 
 const mocks = vi.hoisted(() => ({
   createResume: vi.fn(),
@@ -80,10 +81,11 @@ const resume: Resume = {
   updated_at: '2025-01-01T00:00:00Z',
 }
 
-function renderBuilder() {
+function renderBuilder(options: { initialResume?: Resume; profiles?: CareerProfile[] } = {}) {
   return render(<ResumeBuilderPage
-    resumes={[]}
-    profiles={[]}
+    resumes={options.initialResume ? [options.initialResume] : []}
+    profiles={options.profiles || []}
+    initialResume={options.initialResume}
     onChanged={vi.fn().mockResolvedValue(undefined)}
     onResumeUpdated={vi.fn()}
     onProfileChanged={vi.fn()}
@@ -97,6 +99,8 @@ describe('ResumeBuilderPage', () => {
     vi.clearAllMocks()
     mocks.createResume.mockResolvedValue(resume)
     mocks.getCareerProfiles.mockResolvedValue([profile])
+    mocks.getResumeSections.mockResolvedValue({ resume_id: resume.id, sections: [] })
+    mocks.getSectionRecords.mockResolvedValue([])
     mocks.updateResume.mockResolvedValue(resume)
   })
 
@@ -131,5 +135,60 @@ describe('ResumeBuilderPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Choose a PDF or DOCX file.')
     expect(mocks.importResume).not.toHaveBeenCalled()
+  })
+
+  it('shows email validation and prevents an invalid PDF export', async () => {
+    const user = userEvent.setup()
+    renderBuilder({ initialResume: resume, profiles: [profile] })
+    const email = await screen.findByLabelText('Email')
+    await user.type(email, 'not-an-email')
+
+    expect(await screen.findByText('Enter a valid email address.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Export PDF' })).toBeDisabled()
+  })
+
+  it('validates phone digits, profile URL domains, date chronology, and campus grades', () => {
+    expect(sanitizePhoneInput('+91 9876543210abc')).toBe('+91 9876543210')
+    expect(personalFormSchema.safeParse({
+      full_name: '',
+      professional_title: '',
+      email: '',
+      phone: '',
+      city: '',
+      summary: '',
+      linkedin_url: '',
+      github_url: '',
+      leetcode_url: '',
+      portfolio_url: '',
+    }).success).toBe(true)
+    expect(personalFormSchema.safeParse({
+      full_name: 'Alex Morgan',
+      professional_title: '',
+      email: '',
+      phone: '123456789',
+      city: '',
+      summary: '',
+      linkedin_url: '',
+      github_url: 'https://notgithub.com/alex',
+      leetcode_url: '',
+      portfolio_url: '',
+    }).success).toBe(false)
+
+    const education = entryFormSchema('education', 'student' satisfies ProfileType)
+    const result = education.safeParse({
+      institution_name: 'Example University',
+      degree: 'BSc',
+      start_date: '08/2024',
+      end_date: '07/2023',
+      grade: '10.5',
+      is_current: true,
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues.map((issue) => issue.message)).toEqual(expect.arrayContaining([
+        'End date cannot precede the start date.',
+        'Enter CGPA from 0 to 10 or percentage from 0% to 100%.',
+      ]))
+    }
   })
 })

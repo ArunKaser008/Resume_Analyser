@@ -309,6 +309,50 @@
   font-size: 13px;
 }
 
+.mb-form-grid input.has-validation-error,
+.mb-form-grid textarea.has-validation-error {
+  border-color: #c84f48;
+  background: #fffafa;
+}
+
+.mb-form-grid input.has-validation-error:focus,
+.mb-form-grid textarea.has-validation-error:focus {
+  box-shadow: 0 0 0 3px #c84f4818;
+}
+
+.mb-field-error,
+.mb-field-warning,
+.mb-character-count {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.mb-field-error {
+  color: #a63c35;
+}
+
+.mb-field-warning {
+  color: #936411;
+}
+
+.mb-character-count {
+  color: #718094;
+  text-align: right;
+}
+
+.mb-validation-summary,
+.mb-page-warning {
+  padding: 10px 13px;
+  border: 1px solid #edcd8c;
+  border-radius: 9px;
+  color: #79550e;
+  background: #fff9e9;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .mb-create-inputs input:focus,
 .mb-form-grid input:focus,
 .mb-form-grid textarea:focus,
@@ -410,9 +454,12 @@
   align-items: center;
 }
 
-.mb-style-drawer input[type="color"] {
-  height: 38px;
-  padding: 4px;
+.mb-palette-preview {
+  display: inline-block;
+  width: 100%;
+  height: 9px;
+  border: 1px solid #00000014;
+  border-radius: 6px;
 }
 
 .mb-style-drawer .mb-toggle,
@@ -592,14 +639,27 @@
 }
 
 .mb-resume-paper {
+  position: relative;
   display: grid;
   gap: calc(12px * var(--mb-spacing, 1));
-  min-height: 560px;
+  height: 1120px;
   padding: 25px 27px;
   color: #25323b;
   font-family: var(--mb-font, Arial), sans-serif;
   font-size: var(--mb-font-size, 11px);
-  line-height: 1.45;
+  line-height: 1.3;
+  overflow: visible;
+}
+
+.mb-resume-paper::after {
+  position: absolute;
+  top: 1119px;
+  right: 0;
+  left: 0;
+  z-index: 1;
+  border-top: 1px dashed #d69a39;
+  content: "";
+  pointer-events: none;
 }
 
 .mb-resume-paper header {
@@ -608,9 +668,10 @@
   text-align: center;
 }
 
-.mb-resume-paper header h2 {
+.mb-resume-paper header h1 {
   margin: 0;
-  font-size: 21px;
+  font-size: 29.33px;
+  font-weight: 800;
 }
 
 .mb-resume-paper header p {
@@ -629,7 +690,9 @@
   padding-bottom: 3px;
   border-bottom: 1px solid #dce3e5;
   color: var(--mb-accent, #147f89);
-  font-size: 12px;
+  font-size: 17.33px;
+  font-weight: 700;
+  letter-spacing: .06em;
   text-transform: uppercase;
 }
 
@@ -642,6 +705,12 @@
   display: grid;
   gap: 2px;
   margin: 0 0 8px;
+  break-inside: avoid;
+}
+
+.mb-preview-entry > strong {
+  font-size: 14.67px;
+  font-weight: 600;
 }
 
 .mb-preview-entry span {
@@ -812,7 +881,7 @@
   }
 
   .mb-resume-paper {
-    min-height: 470px;
+    height: 1120px;
     padding: 20px;
   }
 

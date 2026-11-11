@@ -46,7 +46,7 @@ export interface CustomResumeSection {
 
 export interface ResumeDesignSettings {
   layout: 'single-column' | 'two-column'
-  font_family: 'Arial' | 'Georgia' | 'Inter' | 'Roboto' | 'Tahoma'
+  font_family: 'Arial' | 'Georgia' | 'Garamond' | 'Helvetica' | 'Inter' | 'Merriweather' | 'Roboto'
   font_size: number
   spacing: 'compact' | 'comfortable' | 'spacious'
   accent_color: string
@@ -56,9 +56,9 @@ export interface ResumeDesignSettings {
 export const defaultResumeDesign: ResumeDesignSettings = {
   layout: 'single-column',
   font_family: 'Arial',
-  font_size: 12,
+  font_size: 10,
   spacing: 'comfortable',
-  accent_color: '#00A7A2',
+  accent_color: '#52677C',
   page_size: 'A4',
 }
 

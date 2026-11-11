@@ -40,8 +40,16 @@ def ensure_unique_custom_section_ids(sections):
 
 class ResumeDesignSettings(BaseModel):
     layout: Literal["single-column", "two-column"] = "single-column"
-    font_family: Literal["Arial", "Georgia", "Inter", "Roboto", "Tahoma"] = "Arial"
-    font_size: int = Field(default=12, ge=10, le=14)
+    font_family: Literal[
+        "Arial",
+        "Garamond",
+        "Georgia",
+        "Helvetica",
+        "Inter",
+        "Merriweather",
+        "Roboto",
+    ] = "Arial"
+    font_size: float = Field(default=10, ge=9.5, le=10.5)
     spacing: Literal["compact", "comfortable", "spacious"] = "comfortable"
     accent_color: str = Field(default="#00A7A2", pattern=r"^#[0-9A-Fa-f]{6}$")
     page_size: Literal["A4", "Letter"] = "A4"

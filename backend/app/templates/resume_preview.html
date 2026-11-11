@@ -177,19 +177,19 @@
             {% endif %}
 
             {% if profile.linkedin_url %}
-                <a href="{{ profile.linkedin_url }}">LinkedIn</a>
+                <a href="{{ profile.linkedin_url }}">{{ profile.linkedin_url|url_alias }}</a>
             {% endif %}
 
             {% if profile.github_url %}
-                <a href="{{ profile.github_url }}">GitHub</a>
+                <a href="{{ profile.github_url }}">{{ profile.github_url|url_alias }}</a>
             {% endif %}
 
             {% if profile.leetcode_url %}
-                <a href="{{ profile.leetcode_url }}">LeetCode</a>
+                <a href="{{ profile.leetcode_url }}">{{ profile.leetcode_url|url_alias }}</a>
             {% endif %}
 
             {% if profile.portfolio_url %}
-                <a href="{{ profile.portfolio_url }}">Portfolio</a>
+                <a href="{{ profile.portfolio_url }}">{{ profile.portfolio_url|url_alias }}</a>
             {% endif %}
         </div>
     </header>
@@ -285,7 +285,7 @@
 
             {% if item.project_url %}
                 <div>
-                    <a href="{{ item.project_url }}">Project Link</a>
+                    <a href="{{ item.project_url }}">{{ item.project_url|url_alias }}</a>
                 </div>
             {% endif %}
         </div>
@@ -349,7 +349,7 @@
             {% endif %}
 
             {% if item.credential_url %}
-                <a href="{{ item.credential_url }}">View Credential</a>
+                <a href="{{ item.credential_url }}">{{ item.credential_url|url_alias }}</a>
             {% endif %}
         </div>
         {% endfor %}

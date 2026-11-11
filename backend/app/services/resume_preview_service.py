@@ -2,6 +2,7 @@
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import UUID
+from urllib.parse import urlsplit
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from sqlalchemy import inspect
@@ -22,6 +23,20 @@ jinja_env = Environment(
     loader=FileSystemLoader(str(TEMPLATE_DIR)),
     autoescape=select_autoescape(["html", "xml"]),
 )
+
+
+def url_alias(value: str | None) -> str:
+    if not value:
+        return ""
+    parsed = urlsplit(value if "://" in value else f"https://{value}")
+    if not parsed.hostname:
+        return value
+    host = parsed.hostname.removeprefix("www.")
+    path = parsed.path.rstrip("/")
+    return f"{host}{path}"
+
+
+jinja_env.filters["url_alias"] = url_alias
 
 BASE_TEMPLATES = {"modern", "professional", "minimal"}
 DEFAULT_SECTION_ORDER = [
