@@ -20,7 +20,6 @@ from app.api.v1.certifications import router as certifications_router
 from app.api.v1.achievements import router as achievements_router
 from app.api.v1.resume_sections import router as resume_sections_router
 from app.api.v1.resume_preview import router as resume_preview_router
-from app.api.v1.resume_analysis import router as resume_analysis_router
 from app.api.v1.resume_optimization import (
     router as resume_optimization_router,
 )
@@ -104,7 +103,6 @@ API_ROUTERS = [
     achievements_router,
     resume_sections_router,
     resume_preview_router,
-    resume_analysis_router,
     resume_optimization_router,
     resume_optimization_review_router,
     resume_content_overrides_router,

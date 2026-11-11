@@ -436,7 +436,6 @@
 .content-list,
 .override-list,
 .suggestion-list,
-.breakdown-list,
 .skill-list {
   display: grid;
   gap: 8px;
@@ -757,16 +756,6 @@ input[type='checkbox'] {
   gap: 8px;
 }
 
-.score-copy {
-  min-width: 0;
-  flex: 1;
-}
-
-.score-actions {
-  flex-wrap: wrap;
-  margin-top: 12px;
-}
-
 .search-field {
   display: flex;
   width: min(400px, 100%);
@@ -1002,95 +991,13 @@ input[type='checkbox'] {
   color: #e8bd70;
 }
 
-.results {
-  display: grid;
-  gap: 13px;
-}
-
-.score-panel {
-  display: flex;
-  align-items: center;
-  gap: 17px;
-}
-.source-switch,
-.score-actions {
-  align-items: stretch;
-  flex-direction: column;
-}
-
-.score-panel h2 {
-  margin: 6px 0;
-}
-
-.score-panel p {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 10px;
-  line-height: 1.6;
-}
-
-.score-ring {
-  display: grid;
-  width: 82px;
-  height: 82px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 50%;
-  background: conic-gradient(var(--cyan) var(--score), rgba(154, 180, 211, .12) 0);
-}
-
-.score-ring::before {
-  position: absolute;
-  width: 68px;
-  height: 68px;
-  border-radius: 50%;
-  background: #101a2b;
-  content: '';
-}
-
-.score-ring strong {
-  z-index: 1;
-  font: 700 21px 'Manrope', sans-serif;
-}
-
-.score-ring small {
-  font-size: 10px;
-}
-
-.breakdown-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(170px, .7fr);
-  align-items: center;
-  gap: 20px;
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(154, 180, 211, .08);
-}
-
-.breakdown-row > div:first-child {
-  display: grid;
-  gap: 4px;
-}
-
-.breakdown-row strong,
 .skill-row strong {
   font-size: 10px;
 }
 
-.breakdown-row small,
 .skill-row small {
   color: var(--text-muted);
   font-size: 9px;
-}
-
-.breakdown-value {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-
-.breakdown-value > strong {
-  width: 35px;
-  text-align: right;
 }
 
 .progress-track {
@@ -1487,20 +1394,12 @@ input[type='checkbox'] {
   .order-row .muted {
     display: none;
   }
-  .breakdown-row {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
   .skill-row {
     grid-template-columns: 1fr;
     justify-items: start;
   }
   .skill-row p {
     grid-column: auto;
-  }
-  .score-panel {
-    align-items: flex-start;
-    flex-direction: column;
   }
   .suggestion-header {
     align-items: flex-start;

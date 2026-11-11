@@ -322,21 +322,6 @@ export interface ScoreCategory {
   details: string
 }
 
-export interface ResumeAnalysis {
-  resume_id: string
-  match_score: number
-  score_label: string
-  score_breakdown: ScoreCategory[]
-  matched_keywords: string[]
-  missing_keywords: string[]
-  matched_skills: string[]
-  missing_skills: string[]
-  strengths: string[]
-  weaknesses: string[]
-  recommendations: string[]
-  summary: string
-}
-
 export type TargetATS = 'WORKDAY' | 'GREENHOUSE' | 'LEVER'
 
 export interface ATSHardSkillMatch {
