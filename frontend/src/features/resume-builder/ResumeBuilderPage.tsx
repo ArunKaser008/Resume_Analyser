@@ -5,6 +5,7 @@ import { createSectionRecord, deleteSectionRecord, getSectionRecords, updateSect
 import { getResumeSections, updateResume, updateResumeSections } from '../../api/resumes'
 import type { CareerProfile, CustomResumeEntry, CustomResumeSection, CustomResumeSectionType, Resume, ResumeSection, SectionRecord, SectionType } from '../../api/types'
 import ResumeCustomizationPanel from './ResumeCustomizationPanel'
+import BulletOptimizerModal from './BulletOptimizerModal'
 
 const sectionInfo: { type: SectionType; title: string; description: string }[] = [
   { type: 'education', title: 'Education', description: 'Degrees, schools, and academic credentials.' },
@@ -55,6 +56,7 @@ const fieldsByType: Record<SectionType, Field[]> = {
 type Draft = Record<string, string | boolean>
 type PendingRecord = { id: string; type: SectionType; fields: Record<string, unknown> }
 type ItemMap = Record<SectionType, SectionRecord[]>
+type OptimizingBullet = { type: 'work_experience' | 'project'; itemId: string; field: string; lineIndex: number; original: string }
 type BuilderTab = 'overview' | 'content' | 'customize'
 
 const customContentTypes: {
@@ -122,6 +124,7 @@ export default function ResumeBuilderPage({ resume, profile, onPreview, onResume
   const [pendingCustomSectionIds, setPendingCustomSectionIds] = useState<string[]>([])
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [summaryDraft, setSummaryDraft] = useState(profile.summary || '')
+  const [optimizingBullet, setOptimizingBullet] = useState<OptimizingBullet | null>(null)
 
   useEffect(() => {
     let active = true
@@ -456,6 +459,26 @@ export default function ResumeBuilderPage({ resume, profile, onPreview, onResume
       : section))
   }
 
+  const applyOptimizedBullet = async (replacement: string) => {
+    if (!optimizingBullet) return
+    const { type, itemId, field, lineIndex, original } = optimizingBullet
+    const record = records[type].find((item) => item.id === itemId)
+    const currentText = record?.[field]
+    if (typeof currentText !== 'string') throw new Error('The original bullet could not be found in this resume.')
+    const lines = currentText.split(/\r?\n/)
+    if (lines[lineIndex]?.trim() !== original) {
+      throw new Error('This bullet changed while the optimizer was open. Reopen it before applying.')
+    }
+    lines[lineIndex] = replacement
+    const updated = await updateSectionRecord(type, itemId, { [field]: lines.join('\n') })
+    setRecords((current) => ({
+      ...current,
+      [type]: current[type].map((item) => item.id === itemId ? updated : item),
+    }))
+    setNotice('Optimized bullet applied to your resume.')
+    setOptimizingBullet(null)
+  }
+
   const addContent = (item: typeof customContentTypes[number]) => {
     setAddContentOpen(false)
     if (item.type) {
@@ -579,7 +602,14 @@ export default function ResumeBuilderPage({ resume, profile, onPreview, onResume
         <button type="button" className="builder-add-content" onClick={() => setAddContentOpen(true)}><span>＋</span>Add Content</button>
         <div className="builder-save-resume"><span>{hasPendingChanges ? 'Your latest changes are still a draft.' : 'Save your resume when you are ready.'}</span><button type="button" className="button button-primary" disabled={saving || busy || (formType !== null && !editId)} onClick={() => void saveResumeDraft()}>{saving ? 'Saving resume…' : 'Save resume'}</button></div>
       </section>
-      <ResumeDocumentPreview resume={{ ...resume, custom_sections: customSectionsDraft }} profile={{ ...profile, summary: summaryOpen ? summaryDraft : profile.summary }} records={records} sections={sections} pendingRecords={pendingRecords} />
+      <ResumeDocumentPreview
+        resume={{ ...resume, custom_sections: customSectionsDraft }}
+        profile={{ ...profile, summary: summaryOpen ? summaryDraft : profile.summary }}
+        records={records}
+        sections={sections}
+        pendingRecords={pendingRecords}
+        onOptimizeBullet={setOptimizingBullet}
+      />
     </div>}
 
     {activeTab === 'customize' && <div className="builder-customize-content">
@@ -629,6 +659,13 @@ export default function ResumeBuilderPage({ resume, profile, onPreview, onResume
     </div>}
 
     {formType && editId && <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) closeForm() }}>{recordForm(false)}</div>}
+    {optimizingBullet && <BulletOptimizerModal
+      originalBullet={optimizingBullet.original}
+      targetRole={resume.target_role || profile.professional_title || 'Professional'}
+      seniorityLevel={profile.profile_type === 'student' ? 'INTERN' : profile.profile_type === 'fresher' ? 'FRESHER' : 'SENIOR'}
+      onClose={() => setOptimizingBullet(null)}
+      onApply={applyOptimizedBullet}
+    />}
   </div>
 }
 
@@ -657,12 +694,13 @@ function pendingRecordLabel(item: PendingRecord): string {
   return typeof label === 'string' && label.trim() ? label : `New ${sectionInfo.find((entry) => entry.type === item.type)?.title || 'resume'} entry`
 }
 
-function ResumeDocumentPreview({ resume, profile, records, sections, pendingRecords }: {
+function ResumeDocumentPreview({ resume, profile, records, sections, pendingRecords, onOptimizeBullet }: {
   resume: Resume
   profile: CareerProfile
   records: ItemMap
   sections: ResumeSection[]
   pendingRecords: PendingRecord[]
+  onOptimizeBullet: (bullet: OptimizingBullet) => void
 }) {
   const included = sections.map((section) => ({
     section,
@@ -674,6 +712,7 @@ function ResumeDocumentPreview({ resume, profile, records, sections, pendingReco
   })).filter((entry) => entry.items.length > 0 || pendingRecords.some((item) => item.type === entry.section.section_type))
 
   return <aside className={`builder-preview-panel ${resume.template_name}`}>
+    <p className="builder-preview-hint">Highlighted bullets may benefit from a verified result. Select one to optimize it.</p>
     <article className="builder-resume-paper">
       <header className="builder-paper-header">
         <h2>{profile.full_name || 'Your name'}</h2>
@@ -683,7 +722,27 @@ function ResumeDocumentPreview({ resume, profile, records, sections, pendingReco
       {profile.summary && <section className="builder-paper-section"><h3>Summary</h3><p>{profile.summary}</p></section>}
       {included.map(({ section, items }) => <section className="builder-paper-section" key={section.section_type}>
         <h3>{sectionInfo.find((entry) => entry.type === section.section_type)?.title}</h3>
-        {items.map((item) => <div className="builder-paper-entry" key={item.id}><strong>{recordLabel(section.section_type, item)}</strong><span>{summaryFor(section.section_type, item)}</span></div>)}
+        {items.map((item) => <div className="builder-paper-entry" key={item.id}>
+          <strong>{recordLabel(section.section_type, item)}</strong>
+          {section.section_type === 'work_experience' || section.section_type === 'project'
+            ? <>
+              {resumeEntryDetails(section.section_type, item) && <span>{resumeEntryDetails(section.section_type, item)}</span>}
+              <div className="builder-paper-bullets">{bulletFields(section.section_type, item).map(({ field, text }) => text.split(/\r?\n/).map((line, lineIndex) => line.trim() ? <button
+              type="button"
+              className={`builder-paper-bullet ${hasMeasurableResult(line) ? '' : 'weak'}`}
+              key={`${field}-${lineIndex}`}
+              onClick={() => onOptimizeBullet({
+                type: section.section_type as 'work_experience' | 'project',
+                itemId: item.id,
+                field,
+                lineIndex,
+                original: line.trim(),
+              })}
+              aria-label={`Optimize bullet: ${line.trim()}`}
+              >{line.trim()}</button> : null))}</div>
+            </>
+            : <span>{summaryFor(section.section_type, item)}</span>}
+        </div>)}
         {pendingRecords.filter((item) => item.type === section.section_type).map((item) => <div className="builder-paper-entry" key={item.id}><strong>{pendingRecordLabel(item)}</strong><span>{Object.entries(item.fields).filter(([key, value]) => key !== 'is_current' && key !== 'does_not_expire' && value !== null && value !== '').map(([, value]) => String(value)).join(' · ')}</span></div>)}
       </section>)}
       {(resume.custom_sections || []).filter((section) => section.entries.length > 0).map((section) => <section className="builder-paper-section" key={section.id}>
@@ -693,4 +752,31 @@ function ResumeDocumentPreview({ resume, profile, records, sections, pendingReco
       {included.length === 0 && !profile.summary && (resume.custom_sections || []).every((section) => !section.entries.length) && <p className="builder-paper-empty">Your resume preview will appear here as you add content.</p>}
     </article>
   </aside>
+}
+
+function bulletFields(
+  type: 'work_experience' | 'project',
+  item: SectionRecord,
+): { field: string; text: string }[] {
+  const fields = type === 'work_experience'
+    ? ['description']
+    : ['description', 'responsibilities', 'achievements']
+  return fields.flatMap((field) => {
+    const value = item[field]
+    return typeof value === 'string' && value.trim() ? [{ field, text: value }] : []
+  })
+}
+
+function resumeEntryDetails(
+  type: 'work_experience' | 'project',
+  item: SectionRecord,
+): string {
+  const fields = type === 'work_experience'
+    ? ['employment_type', 'location', 'start_date', 'end_date']
+    : ['role', 'technologies', 'project_url']
+  return fields.map((field) => item[field]).filter((value) => value !== null && value !== undefined && value !== '').join(' · ')
+}
+
+function hasMeasurableResult(bullet: string): boolean {
+  return /(?:\b\d+(?:[.,]\d+)?\s*%|\$\s?\d|\b\d+(?:[.,]\d+)?\s*(?:ms|seconds?|minutes?|hours?|users?|customers?|teams?|days?|weeks?|months?|years?)\b)/i.test(bullet)
 }

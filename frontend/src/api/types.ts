@@ -100,6 +100,119 @@ export interface ResumeImportResponse {
   extracted_character_count: number
 }
 
+export interface ParsedContactInfo {
+  full_name: string | null
+  email: string | null
+  phone: string | null
+  linkedin_url: string | null
+  github_url: string | null
+  portfolio_url: string | null
+}
+
+export interface ParsedEducation {
+  degree: string | null
+  institution: string | null
+  graduation_year: number | null
+  grade: string | null
+}
+
+export interface ParsedTechnicalSkills {
+  languages: string[]
+  frameworks: string[]
+  cloud_devops: string[]
+  databases: string[]
+  tools: string[]
+}
+
+export interface ParsedExperience {
+  company: string | null
+  title: string | null
+  start_date: string | null
+  end_date: string | null
+  bullet_points: string[]
+}
+
+export interface ParsedProject {
+  title: string | null
+  tech_stack: string[]
+  bullet_points: string[]
+  live_url: string | null
+  code_url: string | null
+}
+
+export interface ParsedResumeData {
+  contact_info: ParsedContactInfo
+  education: ParsedEducation[]
+  technical_skills: ParsedTechnicalSkills
+  experience: ParsedExperience[]
+  projects: ParsedProject[]
+}
+
+export interface ResumeParseResponse {
+  parse_id: string
+  filename: string
+  parsed_data: ParsedResumeData
+}
+
+export type ProofStatus = 'Verified' | 'Unverified' | 'High Risk of Misrepresentation'
+
+export interface ProofProjectClaim {
+  title: string
+  code_url: string | null
+  bullet_points: string[]
+}
+
+export interface ProofOfWorkRequest {
+  github_url: string | null
+  leetcode_url: string | null
+  projects: ProofProjectClaim[]
+}
+
+export interface ProofProjectResult {
+  title: string
+  status: ProofStatus
+  repository_url: string | null
+  repository_owner: string | null
+  owner_matches_profile: boolean | null
+  is_fork: boolean | null
+  stars: number
+  commits_last_12_months: number
+  languages: string[]
+  reasons: string[]
+}
+
+export interface ProofGitHubStats {
+  profile_url: string | null
+  username: string | null
+  valid: boolean
+  recent_commits: number
+  stars: number
+  top_languages: Record<string, number>
+  monthly_activity: { month: string; commits: number }[]
+  history_truncated: boolean
+}
+
+export interface ProofLeetCodeStats {
+  profile_url: string | null
+  username: string | null
+  valid: boolean
+  easy_solved: number
+  medium_solved: number
+  hard_solved: number
+  contest_rating: number | null
+  global_ranking: number | null
+  contests_attended: number
+}
+
+export interface ProofOfWorkResponse {
+  score: number
+  status: ProofStatus
+  github: ProofGitHubStats | null
+  leetcode: ProofLeetCodeStats | null
+  projects: ProofProjectResult[]
+  summary: string
+}
+
 export type ResumeCreate = Pick<Resume, 'title'> & {
   career_profile_id?: string
   full_name?: string
@@ -222,6 +335,46 @@ export interface ResumeAnalysis {
   weaknesses: string[]
   recommendations: string[]
   summary: string
+}
+
+export type TargetATS = 'WORKDAY' | 'GREENHOUSE' | 'LEVER'
+
+export interface ATSHardSkillMatch {
+  skill: string
+  status: 'matched' | 'partial' | 'missing'
+  evidence: string[]
+  rationale: string
+}
+
+export interface ATSFormattingFlag {
+  line_number: number | null
+  category: string
+  severity: string
+  message: string
+}
+
+export interface ATSJDAnalysis {
+  resume_id: string
+  target_ats: TargetATS
+  overall_match_score: number
+  score_breakdown: {
+    hard_skills: number
+    soft_skills: number
+    experience_alignment: number
+    formatting: number
+  }
+  hard_skill_matrix: ATSHardSkillMatch[]
+  seniority_signals: {
+    density_per_100_words: number
+    signal_count: number
+    signals: string[]
+    summary: string
+  }
+  formatting_risk_score: number
+  formatting_flags: ATSFormattingFlag[]
+  raw_parser_output: string
+  recruiter_view: string
+  parser_warnings: string[]
 }
 
 export interface SkillMatch {

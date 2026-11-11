@@ -32,7 +32,7 @@ STOP_WORDS = {
 
 
 TECHNICAL_SKILLS = {
-    "python", "java", "javascript", "typescript",
+    "python", "java", "javascript", "typescript", "react",
     "c++", "c#", "selenium", "playwright", "cypress",
     "appium", "restassured", "postman", "swagger",
     "pytest", "testng", "junit", "cucumber",

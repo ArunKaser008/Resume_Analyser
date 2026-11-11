@@ -14,7 +14,11 @@ import {
   importResume,
 } from '../../api/resumes'
 import { analyzeResume } from '../../api/resumeAnalysis'
-import type { OptimizationSession, ProfileType, Resume, ResumeAnalysis, ResumeContentOverride } from '../../api/types'
+import type { CareerProfile, OptimizationSession, ProfileType, Resume, ResumeAnalysis, ResumeContentOverride, ResumeParseResponse } from '../../api/types'
+import ParsedDataPreview from './ParsedDataPreview'
+import ProofOfWorkDashboard from './ProofOfWorkDashboard'
+import ATSEmulatorView from './ATSEmulatorView'
+import ResumeUploader from './ResumeUploader'
 
 const applicableFields = new Set([
   'summary',
@@ -24,8 +28,9 @@ const applicableFields = new Set([
   'source_text',
 ])
 
-export default function AnalysisPage({ resumes, initialResumeId, onResumeImported, onResumeFinalized }: {
+export default function AnalysisPage({ resumes, profiles, initialResumeId, onResumeImported, onResumeFinalized }: {
   resumes: Resume[]
+  profiles: CareerProfile[]
   initialResumeId?: string
   onResumeImported?: (resume: Resume) => Promise<void>
   onResumeFinalized?: (resume: Resume) => Promise<void>
@@ -38,12 +43,16 @@ export default function AnalysisPage({ resumes, initialResumeId, onResumeImporte
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [analysis, setAnalysis] = useState<ResumeAnalysis | null>(null)
+  const [parseResult, setParseResult] = useState<ResumeParseResponse | null>(null)
   const [session, setSession] = useState<OptimizationSession | null>(null)
   const [draftOverrides, setDraftOverrides] = useState<ResumeContentOverride[]>([])
   const [savingAction, setSavingAction] = useState(false)
   const [downloading, setDownloading] = useState(false)
 
   const currentResume = resumes.find((resume) => resume.id === analyzedResumeId)
+  const currentProfile = currentResume
+    ? profiles.find((profile) => profile.id === currentResume.career_profile_id)
+    : undefined
   const copyRootId = currentResume?.parent_resume_id || currentResume?.id
   const savedCopies = useMemo(
     () => resumes.filter((resume) => resume.parent_resume_id === copyRootId).length,
@@ -189,13 +198,16 @@ export default function AnalysisPage({ resumes, initialResumeId, onResumeImporte
   return <div className="feature-page">
     <div className="page-heading"><div><div className="eyebrow">FEATURE 01</div><h1>ATS resume analyser</h1><p>Upload a resume to see its ATS-readiness score, strengths, and areas to improve.</p></div></div>
     {!initialResumeId && <form className="panel analysis-form" onSubmit={(event) => void analyze(event)}>
+      <ResumeUploader onFileSelected={setFile} onParsed={setParseResult} />
       <div className="form-grid">
-        <label>Resume file *<input type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" required onChange={(event) => setFile(event.target.files?.[0] || null)} /><small className="muted">PDF, DOCX, or TXT · 10 MB maximum. Scanned image-only PDFs are not supported.</small></label>
         <label>Candidate type<select value={profileType} onChange={(event) => { const type = event.target.value as ProfileType; setProfileType(type); if (type === 'student') setTargetRole('') }}><option value="student">Student</option><option value="fresher">Fresher</option><option value="experienced">Experienced</option></select></label>
         {profileType !== 'student' && <label>Target role <span className="muted">(optional)</span><input maxLength={200} value={targetRole} onChange={(event) => setTargetRole(event.target.value)} placeholder="e.g. Product Designer" /></label>}
       </div>
       <div className="form-footer"><span className="muted">Upload a resume for a baseline ATS readiness check.</span><button className="button button-primary" disabled={loading || !file}>{loading ? 'Analyzing…' : 'Analyze resume'}</button></div>
     </form>}
+    {parseResult && <ParsedDataPreview key={parseResult.parse_id} result={parseResult} />}
+    <ProofOfWorkDashboard key={parseResult?.parse_id || 'proof-of-work'} parsedData={parseResult?.parsed_data} />
+    {currentResume && currentProfile && <ATSEmulatorView key={currentResume.id} resume={currentResume} profile={currentProfile} />}
     {initialResumeId && <section className="panel analysis-form"><p>Rechecking the selected resume, including any unsaved draft changes.</p><button className="button button-primary" disabled={loading} onClick={() => void analyze()}>{loading ? 'Analyzing…' : 'Recheck ATS score'}</button></section>}
     {error && <div className="notice notice-error" role="alert">{error}</div>}
     {notice && <div className="notice notice-success" role="status">{notice}</div>}
