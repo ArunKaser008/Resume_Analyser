@@ -82,9 +82,6 @@ export default function DashboardPage({ resumeId, onDraftChanged }: {
       await updateResume(resumeId, { target_role: role })
       setDashboard((current) => current ? { ...current, target_role: role } : current)
     }} />
-    <div className="dashboard-score-breakdown" aria-label="Score breakdown">
-      {Object.entries(dashboard.score_breakdown).map(([name, score]) => <div className="panel dashboard-score-card" key={name}><span>{name.replaceAll('_', ' ')}</span><strong>{Math.round(score)}%</strong><div className="progress-track"><span style={{ width: `${score}%` }} /></div></div>)}
-    </div>
     <PriorityFixFeed fixes={dashboard.top_priority_fixes} onSelect={focusResumeLine} />
     <div ref={(element) => { canvasRef.current = element }}><InteractiveResumeCanvas sections={dashboard.annotated_sections} onRequestFix={requestInlineFix} focusLine={focusLine} /></div>
     <div className="dashboard-two-column">

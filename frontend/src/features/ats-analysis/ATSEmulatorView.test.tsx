@@ -2,19 +2,11 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { analyzeResumeForATS } from '../../api/atsEmulator'
-import type { ATSJDAnalysis, CareerProfile, Resume } from '../../api/types'
+import type { ATSJDAnalysis, Resume } from '../../api/types'
 import ATSEmulatorView from './ATSEmulatorView'
 
 vi.mock('../../api/atsEmulator', () => ({
   analyzeResumeForATS: vi.fn(),
-}))
-vi.mock('../../api/resumeContent', () => ({
-  createSectionRecord: vi.fn(),
-  getSectionRecords: vi.fn().mockResolvedValue([]),
-}))
-vi.mock('../../api/resumes', () => ({
-  getResumeSections: vi.fn().mockResolvedValue({ resume_id: 'resume-1', sections: [] }),
-  updateResumeSections: vi.fn().mockResolvedValue({ resume_id: 'resume-1', sections: [] }),
 }))
 
 const resume: Resume = {
@@ -34,23 +26,6 @@ const resume: Resume = {
     page_size: 'A4',
   },
   section_order: [],
-  created_at: '2026-01-01T00:00:00Z',
-  updated_at: '2026-01-01T00:00:00Z',
-}
-
-const profile: CareerProfile = {
-  id: 'profile-1',
-  profile_type: 'experienced',
-  full_name: 'Avery Example',
-  email: 'avery@example.com',
-  phone: null,
-  city: null,
-  professional_title: 'Software Engineer',
-  summary: null,
-  linkedin_url: null,
-  github_url: null,
-  leetcode_url: null,
-  portfolio_url: null,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 }
@@ -93,7 +68,7 @@ describe('ATSEmulatorView', () => {
 
   it('switches ATS tabs and refreshes the parser and recruiter previews without replacing the pane layout', async () => {
     const user = userEvent.setup()
-    render(<ATSEmulatorView resume={resume} profile={profile} />)
+    render(<ATSEmulatorView resume={resume} />)
 
     await user.type(
       screen.getByLabelText('Job description'),
@@ -103,6 +78,8 @@ describe('ATSEmulatorView', () => {
 
     expect(await screen.findByText('WORKDAY plain-text extraction')).toBeInTheDocument()
     expect(screen.getByText('WORKDAY recruiter interpretation')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Score breakdown' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Missing skills' })).not.toBeInTheDocument()
     const rawPane = screen.getByRole('heading', { name: 'Raw Parser Output' }).parentElement?.parentElement
 
     await user.click(screen.getByRole('tab', { name: /Greenhouse/ }))
@@ -117,7 +94,7 @@ describe('ATSEmulatorView', () => {
   })
 
   it('keeps the parser form usable for an empty job description and explains why analysis is unavailable', async () => {
-    render(<ATSEmulatorView resume={resume} profile={profile} />)
+    render(<ATSEmulatorView resume={resume} />)
     const runButton = screen.getByRole('button', { name: 'Run Workday simulation' })
 
     expect(runButton).toBeDisabled()

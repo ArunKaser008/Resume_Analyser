@@ -1,10 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { ApiError } from '../../api/client'
 import { analyzeResumeForATS } from '../../api/atsEmulator'
-import { createSectionRecord, getSectionRecords } from '../../api/resumeContent'
-import { getResumeSections, updateResumeSections } from '../../api/resumes'
-import type { ATSJDAnalysis, CareerProfile, Resume, TargetATS } from '../../api/types'
-import ScoreBreakdownCard from './ScoreBreakdownCard'
+import type { ATSJDAnalysis, Resume, TargetATS } from '../../api/types'
 
 const atsOptions: { key: TargetATS; label: string; description: string }[] = [
   { key: 'WORKDAY', label: 'Workday', description: 'Plain-text extraction and exact matching.' },
@@ -14,10 +11,8 @@ const atsOptions: { key: TargetATS; label: string; description: string }[] = [
 
 export default function ATSEmulatorView({
   resume,
-  profile,
 }: {
   resume: Resume
-  profile: CareerProfile
 }) {
   const [targetATS, setTargetATS] = useState<TargetATS>('WORKDAY')
   const [jobDescription, setJobDescription] = useState('')
@@ -47,42 +42,6 @@ export default function ATSEmulatorView({
   const submit = (event: FormEvent) => {
     event.preventDefault()
     void runAnalysis(targetATS)
-  }
-
-  const addSkillToResume = async (skill: string) => {
-    const resumeSections = await getResumeSections(resume.id)
-    const skillSection = resumeSections.sections.find(
-      (section) => section.section_type === 'technical_skill',
-    )
-    const profileSkills = await getSectionRecords('technical_skill', profile.id)
-    const existing = profileSkills.find(
-      (record) => 'skill_name' in record
-        && typeof record.skill_name === 'string'
-        && record.skill_name.trim().toLocaleLowerCase() === skill.trim().toLocaleLowerCase(),
-    )
-    const records = existing || await createSectionRecord('technical_skill', profile, {
-      skill_name: skill,
-      category: 'Job description suggestion',
-    })
-    if (skillSection?.items.some((item) => item.item_id === records.id)) return
-    const sections = resumeSections.sections.map((section) => (
-      section.section_type === 'technical_skill'
-        ? {
-          ...section,
-          items: [...section.items, {
-            item_id: records.id,
-            display_order: section.items.length,
-          }],
-        }
-        : section
-    ))
-    if (!sections.some((section) => section.section_type === 'technical_skill')) {
-      sections.push({
-        section_type: 'technical_skill',
-        items: [{ item_id: records.id, display_order: 0 }],
-      })
-    }
-    await updateResumeSections(resume.id, sections)
   }
 
   return <section className="ats-emulator panel" aria-labelledby="ats-emulator-title">
@@ -123,7 +82,6 @@ export default function ATSEmulatorView({
         <section className="ats-preview-pane"><div className="ats-pane-heading"><h3>Recruiter View</h3><span>{result.hard_skill_matrix.length} hard skills scanned</span></div><p className="ats-recruiter-copy">{result.recruiter_view}</p><div className="ats-skill-matrix">{result.hard_skill_matrix.map((item) => <article className={`ats-skill-row ats-skill-${item.status}`} key={item.skill}><div><strong>{item.skill}</strong><span>{item.status}</span></div><p>{item.evidence.length ? item.evidence.join(' · ') : item.rationale}</p></article>)}</div></section>
       </div>
       {result.formatting_flags.length > 0 && <section className="ats-formatting-flags"><h3>Formatting risks ({Math.round(result.formatting_risk_score)}/100)</h3>{result.formatting_flags.map((flag, index) => <p key={`${flag.category}-${index}`}><strong>{flag.line_number ? `Line ${flag.line_number}: ` : ''}{flag.category.replaceAll('_', ' ')}</strong> · {flag.message}</p>)}</section>}
-      <ScoreBreakdownCard result={result} onAddSkill={addSkillToResume} />
     </div>}
   </section>
 }

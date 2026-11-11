@@ -90,8 +90,7 @@
 .proof-inputs,
 .proof-project-inputs,
 .proof-results,
-.ats-emulator-results,
-.ats-score-layout {
+.ats-emulator-results {
   display: grid;
   gap: 12px;
 }
@@ -167,15 +166,13 @@
 }
 
 .parsed-tags,
-.missing-skill-tags,
 .ats-skill-row > div {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
 }
 
-.parsed-tag,
-.missing-skill-tags button {
+.parsed-tag {
   padding: 5px 8px;
   border: 1px solid var(--border);
   border-radius: 99px;
@@ -326,8 +323,7 @@
   min-height: 120px;
 }
 
-.ats-side-by-side,
-.ats-score-layout {
+.ats-side-by-side {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -347,18 +343,6 @@
 .ats-skill-matched strong { color: var(--green); }
 .ats-skill-partial strong { color: #f0c967; }
 .ats-skill-missing strong { color: #fa6f79; }
-
-.ats-score-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
-  padding: 9px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text-secondary);
-  background: rgba(255, 255, 255, .025);
-  text-align: left;
-}
 
 .bullet-optimizer-launch textarea {
   width: 100%;
@@ -412,8 +396,7 @@
   .parsed-fields,
   .parsed-record,
   .proof-project-fields,
-  .ats-side-by-side,
-  .ats-score-layout {
+  .ats-side-by-side {
     grid-template-columns: 1fr;
   }
 
