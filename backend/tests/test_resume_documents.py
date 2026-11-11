@@ -12,7 +12,11 @@ from app.models.resume_section_item import ResumeSectionItem
 from app.models.technical_skill import TechnicalSkill
 from app.models.work_experience import WorkExperience
 from app.schemas.resume_import import ResumeImportData
-from app.services.resume_document_service import ResumeDocumentService
+from app.services.ai_client import AIResponseError
+from app.services.resume_document_service import (
+    ResumeDocumentService,
+    ResumeImportParser,
+)
 from app.services.resume_docx_service import ResumeDOCXService
 from app.services.resume_content_override_service import (
     ResumeContentOverrideService,
@@ -76,9 +80,8 @@ class ResumeDocumentServiceTests(unittest.TestCase):
         with patch(
             "app.services.resume_document_service.ResumeImportParser.parse",
             return_value=ResumeImportData(),
-        ):
-            imported_profile, resume, character_count = (
-                ResumeDocumentService.import_resume(
+        ) as parse:
+            imported_profile, resume, character_count = ResumeDocumentService.import_resume(
                 db=db,
                 filename="avery-resume.docx",
                 content=output.getvalue(),
@@ -87,7 +90,7 @@ class ResumeDocumentServiceTests(unittest.TestCase):
                 title=None,
                 target_role="Junior Engineer",
             )
-            )
+            parse.assert_not_called()
 
         self.assertEqual(imported_profile.profile_type, "fresher")
         self.assertEqual(resume.career_profile_id, imported_profile.id)
@@ -193,7 +196,7 @@ class ResumeDocumentServiceTests(unittest.TestCase):
             "app.services.resume_document_service.ResumeImportParser.parse",
             return_value=structured_data,
         ):
-            profile, resume, _ = ResumeDocumentService.import_resume(
+            profile, resume, _ = ResumeDocumentService.import_resume_structured(
                 db=db,
                 filename="alex-resume.docx",
                 content=output.getvalue(),
@@ -249,6 +252,34 @@ class ResumeDocumentServiceTests(unittest.TestCase):
             [skill.skill_name for skill in parsed.skills],
             ["Python", "PostgreSQL"],
         )
+        self.assertIsNone(parsed.skills[0].years_of_experience)
+        self.assertFalse(parsed.work_experience[0].is_current)
+
+    def test_ai_parser_requests_and_validates_the_structured_import_schema(self):
+        with patch(
+            "app.services.resume_document_service.AIClient.generate_json",
+            return_value={
+                "personal_info": {"full_name": "Avery Example"},
+                "skills": ["Python"],
+            },
+        ) as generate_json:
+            parsed = ResumeImportParser.parse("Avery Example\nPython")
+
+        self.assertEqual(parsed.personal_info.full_name, "Avery Example")
+        self.assertEqual(parsed.skills[0].skill_name, "Python")
+        system_prompt = generate_json.call_args.kwargs["system_prompt"]
+        user_prompt = generate_json.call_args.kwargs["user_prompt"]
+        self.assertIn('"personal_info"', system_prompt)
+        self.assertIn("YYYY-MM or YYYY-MM-DD", system_prompt)
+        self.assertIn('"resume_text": "Avery Example\\nPython"', user_prompt)
+
+    def test_ai_parser_rejects_responses_outside_the_structured_schema(self):
+        with patch(
+            "app.services.resume_document_service.AIClient.generate_json",
+            return_value={"unexpected": "field"},
+        ):
+            with self.assertRaises(AIResponseError):
+                ResumeImportParser.parse("Avery Example")
 
     def test_rejects_unsupported_file_types(self):
         with self.assertRaisesRegex(ValueError, "PDF, DOCX, or TXT"):

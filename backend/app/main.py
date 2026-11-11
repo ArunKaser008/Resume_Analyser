@@ -35,6 +35,11 @@ from app.api.v1.candidate_jd_matching import (
     router as candidate_jd_matching_router,
 )
 from app.api.v1.resume_tailoring import router as resume_tailoring_router
+from app.api.v1.resume_parsing import router as resume_parsing_router
+from app.api.v1.proof_of_work import router as proof_of_work_router
+from app.api.v1.ats_emulator import router as ats_emulator_router
+from app.api.v1.bullet_optimizer import router as bullet_optimizer_router
+from app.api.v1.dashboard import router as dashboard_router
 
 
 logger = logging.getLogger(__name__)
@@ -106,6 +111,11 @@ API_ROUTERS = [
     job_description_router,
     candidate_jd_matching_router,
     resume_tailoring_router,
+    resume_parsing_router,
+    proof_of_work_router,
+    ats_emulator_router,
+    bullet_optimizer_router,
+    dashboard_router,
 ]
 
 for router in API_ROUTERS:

@@ -330,13 +330,77 @@ class ResumeContentOverrideService:
         except (LookupError, ValueError):
             db.rollback()
             raise
-
         except Exception:
             db.rollback()
             logger.exception(
-                "Failed to apply resume optimization suggestion %s",
-                suggestion_id,
+                "Failed to apply resume optimization suggestion"
             )
+            raise
+
+    @classmethod
+    def apply_bullet_override(
+        cls,
+        db: Session,
+        resume_id: UUID,
+        original_text: str,
+        suggested_text: str,
+    ):
+        try:
+            resume = db.query(Resume).filter(Resume.id == resume_id).first()
+            if resume is None:
+                raise LookupError("Resume not found.")
+            if not original_text.strip() or not suggested_text.strip():
+                raise ValueError("Original and suggested bullet text are required.")
+            if not resume.source_text:
+                raise ValueError("This resume does not have uploaded source text.")
+
+            existing = (
+                db.query(ResumeContentOverride)
+                .filter(
+                    ResumeContentOverride.resume_id == resume_id,
+                    ResumeContentOverride.section_type == "uploaded_resume",
+                    ResumeContentOverride.source_item_id.is_(None),
+                    ResumeContentOverride.field_name == "source_text",
+                )
+                .first()
+            )
+            current_text = existing.content if existing else resume.source_text
+            content = cls._replace_uploaded_source_text(
+                current_text,
+                original_text,
+                suggested_text,
+            )
+
+            if existing:
+                if not existing.is_draft:
+                    existing.previous_content = existing.content
+                    existing.draft_created = False
+                existing.content = content
+                existing.suggestion_id = None
+                existing.is_draft = True
+                override = existing
+            else:
+                override = ResumeContentOverride(
+                    resume_id=resume_id,
+                    section_type="uploaded_resume",
+                    source_item_id=None,
+                    field_name="source_text",
+                    content=content,
+                    is_draft=True,
+                    previous_content=None,
+                    draft_created=True,
+                )
+                db.add(override)
+
+            db.commit()
+            db.refresh(override)
+            return override
+        except (LookupError, ValueError):
+            db.rollback()
+            raise
+        except Exception:
+            db.rollback()
+            logger.exception("Failed to apply optimized bullet to resume %s", resume_id)
             raise
 
     @staticmethod

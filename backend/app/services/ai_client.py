@@ -1,6 +1,7 @@
 
 import json
 import logging
+import time
 from functools import lru_cache
 
 from google import genai
@@ -42,6 +43,29 @@ class AIClient:
 
     @staticmethod
     def generate_json(
+        system_prompt: str,
+        user_prompt: str,
+    ) -> dict:
+        for attempt in range(3):
+            try:
+                return AIClient._generate_json_once(system_prompt, user_prompt)
+            except AIConfigurationError:
+                raise
+            except AIResponseError as exc:
+                if attempt == 2:
+                    raise
+                delay = 0.2 * (2 ** attempt)
+                logger.warning(
+                    "Gemini request failed; retrying in %.1f seconds (attempt %s/3).",
+                    delay,
+                    attempt + 1,
+                    exc_info=exc,
+                )
+                time.sleep(delay)
+        raise RuntimeError("AI retry loop exited without a result or error.")
+
+    @staticmethod
+    def _generate_json_once(
         system_prompt: str,
         user_prompt: str,
     ) -> dict:

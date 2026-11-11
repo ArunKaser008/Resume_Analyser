@@ -1,5 +1,6 @@
 import { useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import { ApiError } from '../../api/client'
+import { createBulletOverride } from '../../api/resumeContent'
 import {
   applySuggestion,
   createOptimizationSession,
@@ -14,7 +15,14 @@ import {
   importResume,
 } from '../../api/resumes'
 import { analyzeResume } from '../../api/resumeAnalysis'
-import type { OptimizationSession, ProfileType, Resume, ResumeAnalysis, ResumeContentOverride } from '../../api/types'
+import type { CareerProfile, OptimizationSession, ProfileType, Resume, ResumeAnalysis, ResumeContentOverride, ResumeParseResponse } from '../../api/types'
+import './ats-analysis.css'
+import DashboardPage from '../../pages/DashboardPage'
+import BulletOptimizerModal from '../resume-builder/BulletOptimizerModal'
+import ATSEmulatorView from './ATSEmulatorView'
+import ParsedDataPreview from './ParsedDataPreview'
+import ProofOfWorkDashboard from './ProofOfWorkDashboard'
+import ResumeUploader from './ResumeUploader'
 
 const applicableFields = new Set([
   'summary',
@@ -24,13 +32,17 @@ const applicableFields = new Set([
   'source_text',
 ])
 
-export default function AnalysisPage({ resumes, initialResumeId, onResumeImported, onResumeFinalized }: {
+export default function AnalysisPage({ resumes, profiles, initialResumeId, onResumeImported, onResumeFinalized }: {
   resumes: Resume[]
+  profiles: CareerProfile[]
   initialResumeId?: string
   onResumeImported?: (resume: Resume) => Promise<void>
   onResumeFinalized?: (resume: Resume) => Promise<void>
 }) {
   const [file, setFile] = useState<File | null>(null)
+  const [parseResult, setParseResult] = useState<ResumeParseResponse | null>(null)
+  const [bulletText, setBulletText] = useState('')
+  const [bulletOptimizerOpen, setBulletOptimizerOpen] = useState(false)
   const [profileType, setProfileType] = useState<ProfileType>('experienced')
   const [targetRole, setTargetRole] = useState('')
   const [analyzedResumeId, setAnalyzedResumeId] = useState(initialResumeId || '')
@@ -44,6 +56,9 @@ export default function AnalysisPage({ resumes, initialResumeId, onResumeImporte
   const [downloading, setDownloading] = useState(false)
 
   const currentResume = resumes.find((resume) => resume.id === analyzedResumeId)
+  const currentProfile = currentResume
+    ? profiles.find((profile) => profile.id === currentResume.career_profile_id)
+    : undefined
   const copyRootId = currentResume?.parent_resume_id || currentResume?.id
   const savedCopies = useMemo(
     () => resumes.filter((resume) => resume.parent_resume_id === copyRootId).length,
@@ -186,19 +201,36 @@ export default function AnalysisPage({ resumes, initialResumeId, onResumeImporte
     }
   }
 
+  const applyOptimizedBullet = async (suggestedText: string) => {
+    const updated = await createBulletOverride(analyzedResumeId, bulletText, suggestedText)
+    setDraftOverrides((current) => {
+      const withoutTarget = current.filter((item) => item.field_name !== 'source_text')
+      return [...withoutTarget, updated]
+    })
+    setBulletOptimizerOpen(false)
+    setNotice('Optimized bullet added as a draft. Finalize the draft to save it to your resume.')
+  }
+
+  const refreshDrafts = async () => {
+    const overrides = await getContentOverrides(analyzedResumeId)
+    setDraftOverrides(overrides.filter((item) => item.is_draft))
+    setNotice('The suggested change was added as a draft. Finalize the draft to save it to your resume.')
+  }
+
   return <div className="feature-page">
     <div className="page-heading"><div><div className="eyebrow">FEATURE 01</div><h1>ATS resume analyser</h1><p>Upload a resume to see its ATS-readiness score, strengths, and areas to improve.</p></div></div>
     {!initialResumeId && <form className="panel analysis-form" onSubmit={(event) => void analyze(event)}>
+      <ResumeUploader onFileSelected={setFile} onParsed={setParseResult} />
       <div className="form-grid">
-        <label>Resume file *<input type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" required onChange={(event) => setFile(event.target.files?.[0] || null)} /><small className="muted">PDF, DOCX, or TXT · 10 MB maximum. Scanned image-only PDFs are not supported.</small></label>
         <label>Candidate type<select value={profileType} onChange={(event) => { const type = event.target.value as ProfileType; setProfileType(type); if (type === 'student') setTargetRole('') }}><option value="student">Student</option><option value="fresher">Fresher</option><option value="experienced">Experienced</option></select></label>
         {profileType !== 'student' && <label>Target role <span className="muted">(optional)</span><input maxLength={200} value={targetRole} onChange={(event) => setTargetRole(event.target.value)} placeholder="e.g. Product Designer" /></label>}
       </div>
-      <div className="form-footer"><span className="muted">Upload a resume for a baseline ATS readiness check.</span><button className="button button-primary" disabled={loading || !file}>{loading ? 'Analyzing…' : 'Analyze resume'}</button></div>
+      <div className="form-footer"><span className="muted">Upload a resume for parsing and a baseline ATS readiness check.</span><button className="button button-primary" disabled={loading || !file}>{loading ? 'Analyzing…' : 'Analyze resume'}</button></div>
     </form>}
     {initialResumeId && <section className="panel analysis-form"><p>Rechecking the selected resume, including any unsaved draft changes.</p><button className="button button-primary" disabled={loading} onClick={() => void analyze()}>{loading ? 'Analyzing…' : 'Recheck ATS score'}</button></section>}
     {error && <div className="notice notice-error" role="alert">{error}</div>}
     {notice && <div className="notice notice-success" role="status">{notice}</div>}
+    {parseResult && <ParsedDataPreview key={parseResult.parse_id} result={parseResult} />}
     {analysis && <ATSResult
       result={analysis}
       draftOverrides={draftOverrides}
@@ -212,6 +244,22 @@ export default function AnalysisPage({ resumes, initialResumeId, onResumeImporte
       onApply={apply}
       onFinalize={finalize}
       onDownload={download}
+    />}
+    {parseResult && <ProofOfWorkDashboard key={parseResult.parse_id} parsedData={parseResult.parsed_data} />}
+    {currentResume && currentProfile && <ATSEmulatorView key={currentResume.id} resume={currentResume} profile={currentProfile} />}
+    {analysis && <section className="panel bullet-optimizer-launch">
+      <div className="panel-title"><div><span className="eyebrow">GOOGLE XYZ FORMULA</span><h2>Optimize a resume bullet</h2><p>Generate three evidence-preserving rewrites for a bullet in your resume.</p></div></div>
+      <label htmlFor="bullet-optimizer-source">Original bullet</label>
+      <textarea id="bullet-optimizer-source" rows={3} maxLength={2000} value={bulletText} onChange={(event) => setBulletText(event.target.value)} placeholder="Paste an exact bullet from the uploaded resume." />
+      <div className="form-footer"><span className="muted">Applying a rewrite creates an unsaved draft.</span><button className="button button-secondary" disabled={!bulletText.trim() || draftOverrides.length > 0} onClick={() => setBulletOptimizerOpen(true)}>Optimize bullet</button></div>
+    </section>}
+    {analyzedResumeId && analysis && <DashboardPage key={`dashboard-${analyzedResumeId}`} resumeId={analyzedResumeId} onDraftChanged={refreshDrafts} />}
+    {bulletOptimizerOpen && <BulletOptimizerModal
+      originalBullet={bulletText}
+      targetRole={currentResume?.target_role || targetRole || currentProfile?.professional_title || 'Software Engineer'}
+      seniorityLevel={profileType === 'experienced' ? 'SENIOR' : 'FRESHER'}
+      onClose={() => setBulletOptimizerOpen(false)}
+      onApply={applyOptimizedBullet}
     />}
   </div>
 }

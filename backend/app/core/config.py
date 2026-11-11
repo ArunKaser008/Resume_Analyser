@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     # Gemini AI configuration
     gemini_api_key: SecretStr | None = None
     gemini_model: str = "gemini-3.5-flash-lite"
+    redis_url: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

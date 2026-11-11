@@ -9,7 +9,7 @@ import {
   downloadResume,
   downloadResumeDocx,
   getResumeSections,
-  importResume,
+  importResumeStructured,
   updateResume,
   updateResumeSections,
 } from '../../api/resumes'
@@ -490,7 +490,6 @@ export default function ResumeBuilderPage({
       return
     }
     setLoading(true)
-    setImporting(true)
     try {
       const resume = await createResume({
         title: newTitle.trim() || 'My Resume',
@@ -539,8 +538,9 @@ export default function ResumeBuilderPage({
       return
     }
     setLoading(true)
+    setImporting(true)
     try {
-      const imported = await importResume(file, persona, newRole)
+      const imported = await importResumeStructured(file, persona, newRole)
       const resume = await updateResume(imported.resume.id, { template_name: selectedTemplate })
       await onChanged()
       onResumeUpdated(resume)

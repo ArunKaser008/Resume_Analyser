@@ -123,7 +123,7 @@ function App() {
       <div className="page-content">
         {error && <div className="notice notice-error global-notice" role="alert"><span>{error}</span><button className="text-button" onClick={() => void refreshWorkspace().catch((cause: unknown) => setError(getErrorMessage(cause)))}>Retry</button></div>}
         {loading ? <div className="panel empty-state loading-panel"><span className="spinner" /><p>Loading resumes…</p></div> : <>
-          {page === 'ats' && <AnalysisPage key={analysisResumeId || 'upload'} resumes={resumes} initialResumeId={analysisResumeId || undefined} onResumeImported={handleResumeImported} onResumeFinalized={handleResumeImported} />}
+          {page === 'ats' && <AnalysisPage key={analysisResumeId || 'upload'} resumes={resumes} profiles={profiles} initialResumeId={analysisResumeId || undefined} onResumeImported={handleResumeImported} onResumeFinalized={handleResumeImported} />}
           {(page === 'builder' || page === 'builder-edit') && <ResumeBuilderPage
             resumes={resumes}
             profiles={profiles}

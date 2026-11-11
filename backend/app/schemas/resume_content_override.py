@@ -3,7 +3,14 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class BulletOverrideRequest(BaseModel):
+    original_text: str = Field(min_length=1, max_length=4000)
+    suggested_text: str = Field(min_length=1, max_length=4000)
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class ApplySuggestionRequest(BaseModel):

@@ -1,0 +1,429 @@
+.resume-uploader,
+.proof-dashboard,
+.ats-emulator,
+.bullet-optimizer-launch {
+  display: grid;
+  gap: 14px;
+}
+
+.resume-dropzone {
+  display: grid;
+  min-height: 190px;
+  justify-items: center;
+  align-content: center;
+  gap: 9px;
+  padding: 22px;
+  border: 1px dashed rgba(157, 190, 219, .38);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .02);
+  text-align: center;
+}
+
+.resume-dropzone.drag-active {
+  border-color: var(--cyan);
+  background: rgba(30, 201, 214, .08);
+}
+
+.resume-dropzone-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--cyan);
+  background: rgba(30, 201, 214, .12);
+  font-size: 22px;
+}
+
+.resume-upload-filename,
+.resume-upload-actions,
+.resume-upload-actions p,
+.ats-emulator-form-footer {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.resume-parse-progress {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .08);
+}
+
+.resume-parse-progress span {
+  display: block;
+  width: 40%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--gradient);
+  animation: resume-parse-progress 1.1s ease-in-out infinite alternate;
+}
+
+@keyframes resume-parse-progress {
+  to { transform: translateX(150%); }
+}
+
+.resume-upload-actions,
+.proof-section-heading,
+.proof-project-inputs-heading,
+.proof-result-summary,
+.ats-emulator-score,
+.ats-emulator-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.resume-upload-actions p {
+  margin: 0;
+}
+
+.parsed-preview,
+.proof-dashboard,
+.ats-emulator {
+  margin-top: 16px;
+}
+
+.parsed-data-grid,
+.proof-inputs,
+.proof-project-inputs,
+.proof-results,
+.ats-emulator-results,
+.ats-score-layout {
+  display: grid;
+  gap: 12px;
+}
+
+.parsed-data-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.parsed-card-wide {
+  grid-column: 1 / -1;
+}
+
+.parsed-data-card,
+.proof-metric-card,
+.ats-preview-pane,
+.ats-formatting-flags {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .02);
+}
+
+.parsed-data-card h3,
+.proof-metric-card h3,
+.ats-preview-pane h3,
+.ats-formatting-flags h3 {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+.parsed-fields,
+.parsed-record,
+.parsed-field,
+.proof-project-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.parsed-fields,
+.parsed-record,
+.proof-project-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.parsed-record {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+.parsed-field {
+  min-width: 0;
+  align-content: start;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.parsed-field > strong,
+.parsed-field > input,
+.parsed-field > textarea {
+  width: 100%;
+  color: var(--text-primary);
+}
+
+.parsed-field > strong {
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.parsed-field-wide {
+  grid-column: 1 / -1;
+}
+
+.parsed-tags,
+.missing-skill-tags,
+.ats-skill-row > div {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.parsed-tag,
+.missing-skill-tags button {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, .035);
+  font-size: 10px;
+}
+
+.proof-inputs label,
+.proof-project-fields label,
+.bullet-optimizer-launch label {
+  display: grid;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.proof-project-inputs {
+  gap: 10px;
+}
+
+.proof-project-fields {
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.proof-score,
+.proof-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.proof-result-summary,
+.proof-section-heading {
+  justify-content: flex-start;
+}
+
+.proof-result-summary p,
+.proof-chart-caption,
+.proof-section-heading p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.proof-chart {
+  display: flex;
+  height: 115px;
+  align-items: end;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .025);
+}
+
+.proof-chart-column {
+  display: grid;
+  height: 100%;
+  flex: 1;
+  align-content: end;
+  justify-items: center;
+  gap: 5px;
+}
+
+.proof-chart-bar {
+  width: min(20px, 70%);
+  min-height: 3px;
+  border-radius: 4px 4px 0 0;
+  background: var(--gradient);
+}
+
+.proof-chart-column small,
+.proof-language,
+.leetcode-stats {
+  color: var(--text-muted);
+  font-size: 9px;
+}
+
+.proof-project-result,
+.ats-skill-row {
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.proof-language-list,
+.ats-skill-matrix {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.proof-language {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  align-items: center;
+  gap: 9px;
+}
+
+.proof-language .progress-track {
+  height: 5px;
+}
+
+.ats-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ats-tab {
+  display: grid;
+  gap: 5px;
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, .025);
+  text-align: left;
+}
+
+.ats-tab.active {
+  border-color: rgba(30, 201, 214, .55);
+  background: rgba(30, 201, 214, .09);
+}
+
+.ats-tab small,
+.ats-skill-row p,
+.ats-parser-warnings,
+.ats-formatting-flags p {
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.ats-emulator-form {
+  display: grid;
+  gap: 8px;
+}
+
+.ats-emulator-form textarea {
+  min-height: 120px;
+}
+
+.ats-side-by-side,
+.ats-score-layout {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ats-preview-pane pre {
+  max-height: 360px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font: 11px/1.6 monospace;
+}
+
+.ats-skill-row p {
+  margin: 6px 0 0;
+}
+
+.ats-skill-matched strong { color: var(--green); }
+.ats-skill-partial strong { color: #f0c967; }
+.ats-skill-missing strong { color: #fa6f79; }
+
+.ats-score-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, .025);
+  text-align: left;
+}
+
+.bullet-optimizer-launch textarea {
+  width: 100%;
+}
+
+.bullet-optimizer-backdrop {
+  z-index: 80;
+}
+
+.bullet-optimizer-modal {
+  width: min(820px, 100%);
+}
+
+.bullet-optimizer-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.bullet-optimizer-option {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, .025);
+  text-align: left;
+}
+
+.bullet-optimizer-option.selected {
+  border-color: var(--cyan);
+}
+
+.bullet-optimizer-option span,
+.bullet-optimizer-option small {
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.bullet-optimizer-original {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .025);
+}
+
+@media (max-width: 760px) {
+  .parsed-data-grid,
+  .parsed-fields,
+  .parsed-record,
+  .proof-project-fields,
+  .ats-side-by-side,
+  .ats-score-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .parsed-card-wide,
+  .parsed-field-wide {
+    grid-column: auto;
+  }
+
+  .ats-tabs,
+  .bullet-optimizer-options {
+    grid-template-columns: 1fr;
+  }
+}

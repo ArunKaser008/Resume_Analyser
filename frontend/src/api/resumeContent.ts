@@ -1,5 +1,5 @@
 import { apiRequest } from './client'
-import type { CareerProfile, SectionType, SectionRecord } from './types'
+import type { CareerProfile, ResumeContentOverride, SectionType, SectionRecord } from './types'
 
 const resourceBySection: Record<SectionType, string> = {
   education: 'educations',
@@ -44,5 +44,19 @@ export function updateSectionRecord(
 export function deleteSectionRecord(section: SectionType, id: string): Promise<void> {
   return apiRequest<void>(`/${resourceBySection[section]}/${id}`, {
     method: 'DELETE',
+  })
+}
+
+export function createBulletOverride(
+  resumeId: string,
+  originalText: string,
+  suggestedText: string,
+): Promise<ResumeContentOverride> {
+  return apiRequest<ResumeContentOverride>(`/resumes/${encodeURIComponent(resumeId)}/bullet-overrides`, {
+    method: 'POST',
+    body: JSON.stringify({
+      original_text: originalText,
+      suggested_text: suggestedText,
+    }),
   })
 }

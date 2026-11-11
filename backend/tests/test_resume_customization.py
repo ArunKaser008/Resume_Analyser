@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 from datetime import datetime, timezone
+from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
@@ -119,7 +120,10 @@ def test_resume_section_order_rejects_duplicates_and_unknown_sections():
 def test_custom_sections_and_design_settings_render_in_preview_template():
     template = jinja_env.get_template("resumes/modern.html")
     rendered = template.render(
-        resume=SimpleNamespace(title="Resume", source_text=None),
+        resume=SimpleNamespace(
+            title="Resume",
+            source_text="Original raw resume text",
+        ),
         profile=SimpleNamespace(
             full_name="Alex Example",
             professional_title=None,
@@ -130,7 +134,7 @@ def test_custom_sections_and_design_settings_render_in_preview_template():
             github_url=None,
             leetcode_url="https://leetcode.com/u/alex-example/",
             portfolio_url=None,
-            summary=None,
+            summary="Parsed professional summary",
         ),
         sections={
             "work_experience": [],
@@ -175,6 +179,8 @@ def test_custom_sections_and_design_settings_render_in_preview_template():
 
     assert "Languages" in rendered
     assert "English" in rendered
+    assert "Parsed professional summary" in rendered
+    assert "Original raw resume text" not in rendered
     assert "leetcode.com/u/alex-example" in rendered
     assert 'data-layout="two-column"' in rendered
     assert "8.5in" in rendered
@@ -189,3 +195,34 @@ def test_url_alias_uses_domain_and_path_without_protocol():
     from app.services.resume_preview_service import url_alias
 
     assert url_alias("https://www.github.com/example/project/?tab=readme") == "github.com/example/project"
+
+
+def test_optimized_uploaded_bullet_is_saved_as_a_resume_draft():
+    from app.services.resume_content_override_service import ResumeContentOverrideService
+
+    resume_id = uuid4()
+    resume = SimpleNamespace(
+        id=resume_id,
+        source_text="Improved API calls.\nBuilt a service.",
+    )
+    resume_query = Mock()
+    resume_query.filter.return_value.first.return_value = resume
+    override_query = Mock()
+    override_query.filter.return_value.first.return_value = None
+    db = Mock()
+    db.query.side_effect = [resume_query, override_query]
+
+    override = ResumeContentOverrideService.apply_bullet_override(
+        db,
+        resume_id,
+        "Improved API calls.",
+        "Accomplished reliable APIs as measured by [verified metric], by doing improved API calls.",
+    )
+
+    assert override.resume_id == resume_id
+    assert override.section_type == "uploaded_resume"
+    assert override.field_name == "source_text"
+    assert override.is_draft is True
+    assert "Accomplished reliable APIs" in override.content
+    db.commit.assert_called_once()
+    db.refresh.assert_called_once_with(override)

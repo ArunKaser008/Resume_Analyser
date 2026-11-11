@@ -53,8 +53,47 @@ async def import_resume(
     content = await file.read(MAX_UPLOAD_BYTES + 1)
 
     try:
+        profile, resume, character_count = (
+            ResumeDocumentService.import_resume(
+                db=db,
+                filename=file.filename or "",
+                content=content,
+                profile_type=profile_type,
+                full_name=full_name,
+                title=title,
+                target_role=target_role,
+            )
+        )
+        return {
+            "career_profile": profile,
+            "resume": resume,
+            "extracted_character_count": character_count,
+        }
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post(
+    "/import/structured",
+    response_model=ResumeImportResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def import_resume_structured(
+    file: UploadFile = File(...),
+    profile_type: Literal["student", "fresher", "experienced"] = Form(...),
+    full_name: str | None = Form(default=None, max_length=150),
+    title: str | None = Form(default=None, max_length=150),
+    target_role: str | None = Form(default=None, max_length=200),
+    db: Session = Depends(get_db),
+):
+    content = await file.read(MAX_UPLOAD_BYTES + 1)
+
+    try:
         profile, resume, character_count = await run_in_threadpool(
-            ResumeDocumentService.import_resume,
+            ResumeDocumentService.import_resume_structured,
             db=db,
             filename=file.filename or "",
             content=content,

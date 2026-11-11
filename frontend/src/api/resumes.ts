@@ -97,3 +97,18 @@ export function importResume(
     body: form,
   })
 }
+
+export function importResumeStructured(
+  file: File,
+  profileType: ProfileType,
+  targetRole?: string,
+): Promise<ResumeImportResponse> {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('profile_type', profileType)
+  if (targetRole?.trim()) form.append('target_role', targetRole.trim())
+  return apiRequest<ResumeImportResponse>('/resumes/import/structured', {
+    method: 'POST',
+    body: form,
+  })
+}

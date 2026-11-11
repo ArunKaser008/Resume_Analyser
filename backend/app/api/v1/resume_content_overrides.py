@@ -3,12 +3,14 @@ import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.schemas.resume_content_override import (
     ApplySuggestionRequest,
+    BulletOverrideRequest,
     ResumeContentOverrideResponse,
 )
 from app.services.resume_content_override_service import (
@@ -18,6 +20,48 @@ from app.services.resume_content_override_service import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Resume Content Overrides"])
+
+
+@router.post(
+    "/resumes/{resume_id}/bullet-overrides",
+    response_model=ResumeContentOverrideResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def apply_optimized_bullet(
+    resume_id: UUID,
+    request: BulletOverrideRequest,
+    db: Session = Depends(get_db),
+):
+    try:
+        return await run_in_threadpool(
+            ResumeContentOverrideService.apply_bullet_override,
+            db,
+            resume_id,
+            request.original_text,
+            request.suggested_text,
+        )
+    except LookupError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    except SQLAlchemyError as exc:
+        logger.exception("Database error applying optimized bullet.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database operation failed while applying the bullet.",
+        ) from exc
+    except Exception as exc:
+        logger.exception("Failed to apply optimized bullet.")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to apply optimized bullet.",
+        ) from exc
 
 
 @router.post(

@@ -9,12 +9,23 @@ class ResumeAPIContractTests(unittest.TestCase):
 
         self.assertIn("/api/v1/resumes/import", paths)
         self.assertIn("post", paths["/api/v1/resumes/import"])
+        self.assertIn("/api/v1/resumes/import/structured", paths)
+        self.assertIn("post", paths["/api/v1/resumes/import/structured"])
         self.assertIn(
             "/api/v1/resumes/{resume_id}/download",
             paths,
         )
         self.assertIn(
             "/api/v1/resumes/{resume_id}/download/docx",
+            paths,
+        )
+        self.assertIn("/api/v1/resume/parse", paths)
+        self.assertIn("/api/v1/resume/analyze-jd", paths)
+        self.assertIn("/api/v1/verify/proof-of-work", paths)
+        self.assertIn("/api/v1/bullet/optimize", paths)
+        self.assertIn("/api/v1/dashboard/{analysis_id}", paths)
+        self.assertIn(
+            "/api/v1/resumes/{resume_id}/bullet-overrides",
             paths,
         )
 

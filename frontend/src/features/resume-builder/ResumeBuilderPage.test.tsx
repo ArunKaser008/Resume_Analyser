@@ -1,14 +1,14 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { CareerProfile, ProfileType, Resume } from '../../api/types'
+import type { CareerProfile, ProfileType, Resume, ResumeImportResponse } from '../../api/types'
 import ResumeBuilderPage from './ResumeBuilderPage'
 import { entryFormSchema, personalFormSchema, sanitizePhoneInput } from './resumeValidation'
 
 const mocks = vi.hoisted(() => ({
   createResume: vi.fn(),
   getCareerProfiles: vi.fn(),
-  importResume: vi.fn(),
+  importResumeStructured: vi.fn(),
   updateResume: vi.fn(),
   deleteResume: vi.fn(),
   downloadResume: vi.fn(),
@@ -27,7 +27,7 @@ vi.mock('../../api/resumes', () => ({
   downloadResume: mocks.downloadResume,
   downloadResumeDocx: mocks.downloadResumeDocx,
   getResumeSections: mocks.getResumeSections,
-  importResume: mocks.importResume,
+  importResumeStructured: mocks.importResumeStructured,
   updateResume: mocks.updateResume,
   updateResumeSections: mocks.updateResumeSections,
 }))
@@ -134,7 +134,7 @@ describe('ResumeBuilderPage', () => {
     await user.upload(input as HTMLInputElement, new File(['invalid'], 'resume.exe', { type: 'application/x-msdownload' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Choose a PDF or DOCX file.')
-    expect(mocks.importResume).not.toHaveBeenCalled()
+    expect(mocks.importResumeStructured).not.toHaveBeenCalled()
   })
 
   it('hydrates imported profile and section records into the resume editor', async () => {
@@ -153,11 +153,17 @@ describe('ResumeBuilderPage', () => {
       title: 'Alex Resume',
       target_role: 'Software Engineer',
     }
-    mocks.importResume.mockResolvedValue({
+    let resolveImport: (response: ResumeImportResponse) => void = () => {
+      throw new Error('Import response resolver was not initialized.')
+    }
+    mocks.importResumeStructured.mockReturnValue(new Promise<ResumeImportResponse>((resolve) => {
+      resolveImport = resolve
+    }))
+    const importResponse: ResumeImportResponse = {
       career_profile: importedProfile,
       resume: importedResume,
       extracted_character_count: 300,
-    })
+    }
     mocks.updateResume.mockResolvedValue(importedResume)
     mocks.getCareerProfiles.mockResolvedValue([importedProfile])
     mocks.getResumeSections.mockResolvedValue({
@@ -208,12 +214,16 @@ describe('ResumeBuilderPage', () => {
       }),
     )
 
+    expect(await screen.findByText('Analyzing resume & mapping sections...')).toBeInTheDocument()
+    resolveImport(importResponse)
     expect(await screen.findByDisplayValue('Alex Example')).toBeInTheDocument()
     expect(screen.getByDisplayValue('alex@example.com')).toBeInTheDocument()
     expect(screen.getByDisplayValue('Example Labs')).toBeInTheDocument()
     expect(screen.getByDisplayValue('Resume Studio')).toBeInTheDocument()
+    expect(screen.getByLabelText('Live resume preview')).toHaveTextContent('Example Labs')
+    expect(screen.getByLabelText('Live resume preview')).toHaveTextContent('Resume Studio')
     expect(await screen.findByText('Resume successfully imported! Please review your sections below.')).toBeInTheDocument()
-    expect(mocks.importResume).toHaveBeenCalledOnce()
+    expect(mocks.importResumeStructured).toHaveBeenCalledOnce()
   })
 
   it('shows email validation and prevents an invalid PDF export', async () => {

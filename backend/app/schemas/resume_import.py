@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.schemas.career_profile import CareerProfileResponse
 from app.schemas.resume import ResumeResponse
@@ -84,6 +84,13 @@ class ResumeImportEducation(ResumeImportObject):
     grade: str | None = None
     description: str | None = None
 
+    @field_validator("is_current", mode="before")
+    @classmethod
+    def normalize_current_flag(cls, value):
+        if isinstance(value, str):
+            return value.strip().lower() in {"true", "yes", "current", "present"}
+        return value if isinstance(value, bool) else False
+
 
 class ResumeImportExperience(ResumeImportObject):
     company_name: str | None = None
@@ -95,12 +102,30 @@ class ResumeImportExperience(ResumeImportObject):
     is_current: bool = False
     description: str | None = None
 
+    @field_validator("is_current", mode="before")
+    @classmethod
+    def normalize_current_flag(cls, value):
+        if isinstance(value, str):
+            return value.strip().lower() in {"true", "yes", "current", "present"}
+        return value if isinstance(value, bool) else False
+
 
 class ResumeImportSkill(ResumeImportObject):
     skill_name: str | None = None
     category: str | None = None
     proficiency_level: str | None = None
     years_of_experience: int | None = Field(default=None, ge=0, le=60)
+
+    @field_validator("years_of_experience", mode="before")
+    @classmethod
+    def normalize_years(cls, value):
+        if value is None:
+            return None
+        try:
+            years = int(value)
+        except (TypeError, ValueError):
+            return None
+        return years if 0 <= years <= 60 else None
 
 
 class ResumeImportProject(ResumeImportObject):
@@ -121,6 +146,13 @@ class ResumeImportCertification(ResumeImportObject):
     issue_date: str | None = None
     expiry_date: str | None = None
     does_not_expire: bool = False
+
+    @field_validator("does_not_expire", mode="before")
+    @classmethod
+    def normalize_expiry_flag(cls, value):
+        if isinstance(value, str):
+            return value.strip().lower() in {"true", "yes", "no expiry", "never"}
+        return value if isinstance(value, bool) else False
 
 
 class ResumeImportAchievement(ResumeImportObject):
