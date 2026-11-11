@@ -159,6 +159,47 @@ def test_parse_endpoint_persists_raw_text_and_structured_data(
     assert saved.parsed_data["technical_skills"]["frameworks"] == ["React"]
 
 
+def test_sequential_uploads_get_independent_ids_and_data(
+    client: TestClient,
+    fake_session: FakeSession,
+    monkeypatch,
+) -> None:
+    parsed_resumes = iter([
+        ParsedResumeData.model_validate({
+            "contact_info": {"full_name": "First Candidate"},
+            "technical_skills": {"languages": ["Python"]},
+        }),
+        ParsedResumeData.model_validate({
+            "contact_info": {"full_name": "Second Candidate"},
+            "technical_skills": {"languages": ["Rust"]},
+        }),
+    ])
+    raw_texts = iter(["First resume text", "Second resume text"])
+    monkeypatch.setattr(
+        ResumeParsingService,
+        "parse_resume",
+        lambda _filename, _content: (next(raw_texts), next(parsed_resumes)),
+    )
+
+    responses = [
+        client.post(
+            "/api/v1/resume/parse",
+            files={"file": (f"resume-{index}.txt", f"content {index}".encode(), "text/plain")},
+        )
+        for index in (1, 2)
+    ]
+
+    assert [response.status_code for response in responses] == [201, 201]
+    first, second = [response.json() for response in responses]
+    assert first["parse_id"] != second["parse_id"]
+    assert first["parsed_data"]["contact_info"]["full_name"] == "First Candidate"
+    assert second["parsed_data"]["contact_info"]["full_name"] == "Second Candidate"
+    assert first["parsed_data"]["technical_skills"]["languages"] == ["Python"]
+    assert second["parsed_data"]["technical_skills"]["languages"] == ["Rust"]
+    assert fake_session.records[uuid.UUID(first["parse_id"])].raw_text == "First resume text"
+    assert fake_session.records[uuid.UUID(second["parse_id"])].raw_text == "Second resume text"
+
+
 @pytest.mark.parametrize(
     ("filename", "content"),
     [

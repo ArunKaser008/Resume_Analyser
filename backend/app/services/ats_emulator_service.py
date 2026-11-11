@@ -322,14 +322,30 @@ class ATSEmulatorService:
             f"<job_description>\n{job_description}\n</job_description>\n"
             f"<resume>\n{resume_text[:30_000]}\n</resume>"
         )
-        try:
-            response = AIClient.generate_json(system_prompt, user_prompt)
-            return _SemanticAssessment.model_validate(response)
-        except ValidationError as exc:
-            logger.exception("ATS semantic assessment did not match its schema.")
-            raise AIResponseError(
-                "The ATS semantic assessment returned an invalid response."
-            ) from exc
+        retry_prompt = (
+            f"{user_prompt}\n\n"
+            "Return strictly valid JSON matching the requested schema with no extra text."
+        )
+        for attempt, prompt in enumerate((user_prompt, retry_prompt)):
+            try:
+                response = AIClient.generate_structured_json(
+                    system_prompt,
+                    prompt,
+                    _SemanticAssessment,
+                )
+                return _SemanticAssessment.model_validate(response)
+            except (AIResponseError, ValidationError) as exc:
+                if attempt == 1:
+                    logger.warning(
+                        "ATS semantic assessment remained invalid after one retry.",
+                        exc_info=exc,
+                    )
+                    raise AIResponseError(
+                        "The ATS semantic assessment returned an invalid response after retry."
+                    ) from exc
+                logger.warning(
+                    "ATS semantic assessment was invalid; retrying with a strict JSON instruction."
+                )
 
     @classmethod
     def _formatting_findings(

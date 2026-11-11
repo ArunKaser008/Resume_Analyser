@@ -50,9 +50,9 @@ export default function ParsedDataPreview({ result }: Props) {
   const textInput = (label: string, value: string | null, onChange: (value: string) => void, type = 'text') => editing
     ? <label className="parsed-field">{label}<input type={type} value={value || ''} onChange={(event) => onChange(event.target.value)} /></label>
     : <div className="parsed-field"><span>{label}</span><strong>{value || 'Not found'}</strong></div>
-  const listInput = (label: string, values: string[], onChange: (values: string[]) => void) => editing
-    ? <label className="parsed-field parsed-field-wide">{label}<textarea rows={3} value={values.join('\n')} onChange={(event) => onChange(event.target.value.split('\n').map((value) => value.trim()).filter(Boolean))} /><small>Enter one item per line.</small></label>
-    : <div className="parsed-field parsed-field-wide"><span>{label}</span><div className="parsed-tags">{values.length ? values.map((value) => <span className="parsed-tag" key={value}>{value}</span>) : <strong>Not found</strong>}</div></div>
+  const listInput = (label: string, values: string[], onChange: (values: string[]) => void, key?: string) => editing
+    ? <label key={key} className="parsed-field parsed-field-wide">{label}<textarea rows={3} value={values.join('\n')} onChange={(event) => onChange(event.target.value.split('\n').map((value) => value.trim()).filter(Boolean))} /><small>Enter one item per line.</small></label>
+    : <div key={key} className="parsed-field parsed-field-wide"><span>{label}</span><div className="parsed-tags">{values.length ? values.map((value) => <span className="parsed-tag" key={value}>{value}</span>) : <strong>Not found</strong>}</div></div>
 
   return <section className="panel parsed-preview" aria-label="Parsed resume data">
     <div className="panel-title"><div><span className="eyebrow">AI PARSE PREVIEW</span><h2>{result.filename}</h2><p>Review and correct extracted details before using them.</p></div><div className="button-row">{editing ? <><button type="button" className="button button-secondary" disabled={saving} onClick={() => { setData(result.parsed_data); setEditing(false); setError(''); setNotice('') }}>Cancel</button><button type="button" className="button button-primary" disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save corrections'}</button></> : <button type="button" className="button button-secondary" onClick={() => { setEditing(true); setNotice('') }}>Edit parsed data</button>}</div></div>
@@ -75,6 +75,7 @@ export default function ParsedDataPreview({ result }: Props) {
           ...current,
           technical_skills: { ...current.technical_skills, [key]: values },
         })),
+        key,
       ))}</div></article>
       <article className="parsed-data-card"><h3>Education</h3>{data.education.length ? data.education.map((item, index) => <div className="parsed-record" key={`education-${index}`}>
         {textInput('Degree', item.degree, (value) => updateEducation(index, { degree: value || null }))}

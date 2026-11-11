@@ -1,10 +1,12 @@
 
 import json
 import logging
+import re
 import time
 from functools import lru_cache
 
 from google import genai
+from pydantic import BaseModel
 
 from app.core.config import settings
 
@@ -96,34 +98,7 @@ class AIClient:
 
             response_text = interaction.output_text
 
-            if not response_text or not response_text.strip():
-                raise AIResponseError(
-                    "Gemini returned an empty response."
-                )
-
-            # Remove Markdown JSON fences if present.
-            response_text = response_text.strip()
-
-            if response_text.startswith("```"):
-                response_text = response_text.removeprefix("```json")
-                response_text = response_text.removeprefix("```")
-                response_text = response_text.removesuffix("```")
-                response_text = response_text.strip()
-
-            try:
-                result = json.loads(response_text)
-            except json.JSONDecodeError as exc:
-                logger.exception("Gemini returned invalid JSON.")
-                raise AIResponseError(
-                    "Gemini returned an invalid JSON response."
-                ) from exc
-
-            if not isinstance(result, dict):
-                raise AIResponseError(
-                    "Gemini response must be a JSON object."
-                )
-
-            return result
+            return AIClient._parse_json_response(response_text)
 
         except (AIConfigurationError, AIResponseError):
             raise
@@ -134,3 +109,66 @@ class AIClient:
             raise AIResponseError(
                 "Failed to generate a response using Gemini."
             ) from exc
+
+    @staticmethod
+    def generate_structured_json(
+        system_prompt: str,
+        user_prompt: str,
+        response_schema: type[BaseModel],
+    ) -> dict:
+        """Generate one stateless response using Gemini's native JSON schema mode."""
+        try:
+            client = get_gemini_client()
+            response = client.models.generate_content(
+                model=settings.gemini_model,
+                contents=user_prompt,
+                config=genai.types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    temperature=0.2,
+                    max_output_tokens=8000,
+                    response_mime_type="application/json",
+                    response_schema=response_schema,
+                    store=False,
+                ),
+            )
+            return AIClient._parse_json_response(response.text)
+        except (AIConfigurationError, AIResponseError):
+            raise
+        except Exception as exc:
+            logger.exception("Gemini structured request failed.")
+            raise AIResponseError(
+                "Failed to generate a structured response using Gemini."
+            ) from exc
+
+    @staticmethod
+    def _parse_json_response(response_text: str | None) -> dict:
+        if not response_text or not response_text.strip():
+            raise AIResponseError("Gemini returned an empty response.")
+
+        cleaned_text = response_text.strip()
+        fenced_json = re.fullmatch(
+            r"```(?:json)?\s*(.*?)\s*```",
+            cleaned_text,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        if fenced_json:
+            cleaned_text = fenced_json.group(1).strip()
+
+        try:
+            result = json.loads(cleaned_text)
+        except json.JSONDecodeError:
+            decoder = json.JSONDecoder()
+            object_start = cleaned_text.find("{")
+            try:
+                if object_start < 0:
+                    raise ValueError("No JSON object found.")
+                result, _ = decoder.raw_decode(cleaned_text[object_start:])
+            except (json.JSONDecodeError, ValueError) as exc:
+                raise AIResponseError(
+                    "Gemini returned an invalid JSON response."
+                ) from exc
+
+        if not isinstance(result, dict):
+            raise AIResponseError("Gemini response must be a JSON object.")
+
+        return result

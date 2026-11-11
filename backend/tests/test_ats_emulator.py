@@ -16,6 +16,7 @@ from app.services.ats_emulator_service import (
     ATSEmulatorService,
     _html_to_text,
 )
+from app.services.ai_client import AIResponseError
 
 
 RESUME_ID = uuid4()
@@ -61,7 +62,11 @@ def test_workday_uses_plain_text_keyword_matching_while_greenhouse_and_lever_use
     _stub_resume_service(monkeypatch)
     calls: list[str] = []
 
-    def semantic_response(system_prompt: str, user_prompt: str) -> dict:
+    def semantic_response(
+        system_prompt: str,
+        user_prompt: str,
+        _response_schema: type,
+    ) -> dict:
         calls.append(system_prompt)
         assert "<job_description>" in user_prompt
         return {
@@ -78,7 +83,7 @@ def test_workday_uses_plain_text_keyword_matching_while_greenhouse_and_lever_use
         }
 
     monkeypatch.setattr(
-        "app.services.ats_emulator_service.AIClient.generate_json",
+        "app.services.ats_emulator_service.AIClient.generate_structured_json",
         semantic_response,
     )
     common = {
@@ -227,3 +232,82 @@ def test_endpoint_rejects_extremely_long_job_description() -> None:
     )
 
     assert response.status_code == 422
+
+
+@pytest.mark.parametrize("target_ats", list(TargetATS))
+def test_simulator_endpoint_retries_malformed_semantic_response(
+    monkeypatch,
+    target_ats: TargetATS,
+) -> None:
+    _stub_resume_service(monkeypatch)
+    calls: list[tuple[str, str, type]] = []
+
+    def malformed_then_valid(
+        system_prompt: str,
+        user_prompt: str,
+        response_schema: type,
+    ) -> dict:
+        calls.append((system_prompt, user_prompt, response_schema))
+        if target_ats == TargetATS.WORKDAY:
+            raise AssertionError("Workday simulation should not call Gemini.")
+        if len(calls) == 1:
+            raise AIResponseError("Gemini returned an invalid JSON response.")
+        return {
+            "hard_skill_matrix": [],
+            "soft_skill_score": 65,
+            "experience_alignment_score": 70,
+            "seniority_signals": ["led"],
+            "recruiter_view": "Evidence-backed assessment.",
+        }
+
+    monkeypatch.setattr(
+        "app.services.ats_emulator_service.AIClient.generate_structured_json",
+        malformed_then_valid,
+    )
+    response = TestClient(app).post(
+        "/api/v1/resume/analyze-jd",
+        json={
+            "resume_id": str(RESUME_ID),
+            "job_description": "Python engineering experience",
+            "target_ats": target_ats.value,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["target_ats"] == target_ats.value
+    if target_ats == TargetATS.WORKDAY:
+        assert calls == []
+    else:
+        assert len(calls) == 2
+        assert "strictly valid JSON" in calls[1][1]
+
+
+def test_simulator_endpoint_returns_gateway_error_after_invalid_response_retry(
+    monkeypatch,
+) -> None:
+    _stub_resume_service(monkeypatch)
+    calls = 0
+
+    def always_invalid(*_args) -> dict:
+        nonlocal calls
+        calls += 1
+        raise AIResponseError("Gemini returned an invalid JSON response.")
+
+    monkeypatch.setattr(
+        "app.services.ats_emulator_service.AIClient.generate_structured_json",
+        always_invalid,
+    )
+    response = TestClient(app).post(
+        "/api/v1/resume/analyze-jd",
+        json={
+            "resume_id": str(RESUME_ID),
+            "job_description": "Python engineering experience",
+            "target_ats": TargetATS.GREENHOUSE.value,
+        },
+    )
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == (
+        "The ATS semantic assessment returned an invalid response after retry."
+    )
+    assert calls == 2

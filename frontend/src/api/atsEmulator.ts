@@ -5,9 +5,11 @@ export function analyzeResumeForATS(
   resumeId: string,
   jobDescription: string,
   targetATS: TargetATS,
+  signal?: AbortSignal,
 ): Promise<ATSJDAnalysis> {
   return apiRequest<ATSJDAnalysis>('/resume/analyze-jd', {
     method: 'POST',
+    signal,
     body: JSON.stringify({
       resume_id: resumeId,
       job_description: jobDescription,
