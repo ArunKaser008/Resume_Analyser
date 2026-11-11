@@ -131,6 +131,33 @@ class ResumeResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    @field_validator("design_settings", mode="before")
+    @classmethod
+    def normalize_legacy_design_settings(cls, value):
+        if not isinstance(value, dict):
+            return value
+
+        settings = dict(value)
+        if settings.get("font_family") not in {
+            "Arial",
+            "Garamond",
+            "Georgia",
+            "Helvetica",
+            "Inter",
+            "Merriweather",
+            "Roboto",
+        }:
+            settings["font_family"] = "Arial"
+
+        try:
+            font_size = float(settings.get("font_size", 10))
+        except (TypeError, ValueError):
+            font_size = 10
+        if not 9.5 <= font_size <= 10.5:
+            settings["font_size"] = 10
+
+        return settings
+
 
 class ResumeFinalizeChangesRequest(BaseModel):
     action: Literal["update_existing", "save_copy"]

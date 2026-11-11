@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
@@ -7,6 +8,7 @@ from pydantic import ValidationError
 from app.schemas.resume import (
     CustomResumeSection,
     ResumeDesignSettings,
+    ResumeResponse,
     ResumeUpdate,
 )
 from app.schemas.career_profile import CareerProfileCreate, CareerProfileUpdate
@@ -38,6 +40,32 @@ def test_design_settings_enforce_supported_values_and_ranges():
         ResumeDesignSettings(font_family="Comic Sans")
     with pytest.raises(ValidationError):
         ResumeDesignSettings(font_family="Tahoma")
+
+
+def test_resume_response_normalizes_legacy_typography_settings():
+    response = ResumeResponse.model_validate({
+        "id": uuid4(),
+        "career_profile_id": uuid4(),
+        "title": "Legacy resume",
+        "target_role": None,
+        "template_name": "modern",
+        "is_primary": False,
+        "custom_sections": [],
+        "design_settings": {
+            "layout": "single-column",
+            "font_family": "Roboto",
+            "font_size": 11,
+            "spacing": "comfortable",
+            "accent_color": "#147f89",
+            "page_size": "A4",
+        },
+        "section_order": [],
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
+    })
+
+    assert response.design_settings.font_family == "Roboto"
+    assert response.design_settings.font_size == 10
 
 
 def test_leetcode_profile_url_is_validated_and_rendered():
