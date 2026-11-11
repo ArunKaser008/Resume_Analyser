@@ -17,17 +17,7 @@ class ResumeAPIContractTests(unittest.TestCase):
             "/api/v1/resumes/{resume_id}/download/docx",
             paths,
         )
-
-    def test_resume_analysis_job_description_is_optional(self):
-        spec = app.openapi()
-        operation = spec["paths"][
-            "/api/v1/resumes/{resume_id}/analyze"
-        ]["post"]
-        request_schema = spec["components"]["schemas"][
-            operation["requestBody"]["content"]["application/json"]["schema"]["$ref"].split("/")[-1]
-        ]
-
-        self.assertNotIn("job_description", request_schema.get("required", []))
+        self.assertNotIn("/api/v1/resumes/{resume_id}/analyze", paths)
 
     def test_resume_creation_does_not_require_a_career_profile_id(self):
         spec = app.openapi()

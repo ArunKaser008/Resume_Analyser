@@ -20,7 +20,6 @@ from app.api.v1.certifications import router as certifications_router
 from app.api.v1.achievements import router as achievements_router
 from app.api.v1.resume_sections import router as resume_sections_router
 from app.api.v1.resume_preview import router as resume_preview_router
-from app.api.v1.resume_analysis import router as resume_analysis_router
 from app.api.v1.resume_optimization import (
     router as resume_optimization_router,
 )
@@ -35,6 +34,11 @@ from app.api.v1.candidate_jd_matching import (
     router as candidate_jd_matching_router,
 )
 from app.api.v1.resume_tailoring import router as resume_tailoring_router
+from app.api.v1.resume_parsing import router as resume_parsing_router
+from app.api.v1.ats_emulator import router as ats_emulator_router
+from app.api.v1.proof_of_work import router as proof_of_work_router
+from app.api.v1.bullet_optimizer import router as bullet_optimizer_router
+from app.api.v1.dashboard import router as dashboard_router
 
 
 logger = logging.getLogger(__name__)
@@ -99,13 +103,17 @@ API_ROUTERS = [
     achievements_router,
     resume_sections_router,
     resume_preview_router,
-    resume_analysis_router,
     resume_optimization_router,
     resume_optimization_review_router,
     resume_content_overrides_router,
     job_description_router,
     candidate_jd_matching_router,
     resume_tailoring_router,
+    resume_parsing_router,
+    ats_emulator_router,
+    proof_of_work_router,
+    bullet_optimizer_router,
+    dashboard_router,
 ]
 
 for router in API_ROUTERS:
@@ -113,7 +121,6 @@ for router in API_ROUTERS:
         router,
         prefix=API_PREFIX,
     )
-
 
 # Root endpoint
 @app.get("/", tags=["Health"])
