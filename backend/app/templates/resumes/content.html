@@ -1,4 +1,21 @@
-{% if not resume.source_text %}
+{% set has_structured_content =
+    profile.summary
+    or profile.email
+    or profile.phone
+    or profile.city
+    or profile.linkedin_url
+    or profile.github_url
+    or profile.leetcode_url
+    or profile.portfolio_url
+    or sections.work_experience
+    or sections.technical_skill
+    or sections.project
+    or sections.education
+    or sections.certification
+    or sections.achievement
+%}
+
+{% if not resume.source_text or has_structured_content %}
 <header class="resume-header">
     <h1>{{ profile.full_name }}</h1>
 
@@ -34,7 +51,7 @@
 </section>
 {% endif %}
 
-{% if resume.source_text %}
+{% if resume.source_text and not has_structured_content %}
 <section style="order: {{ section_positions.uploaded_resume }}">
     <h2>Resume Content</h2>
     <p class="description source-content">{{ resume.source_text }}</p>

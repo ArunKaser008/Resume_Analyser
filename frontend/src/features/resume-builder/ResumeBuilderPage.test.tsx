@@ -137,6 +137,85 @@ describe('ResumeBuilderPage', () => {
     expect(mocks.importResume).not.toHaveBeenCalled()
   })
 
+  it('hydrates imported profile and section records into the resume editor', async () => {
+    const user = userEvent.setup()
+    const importedProfile: CareerProfile = {
+      ...profile,
+      id: 'imported-profile',
+      full_name: 'Alex Example',
+      email: 'alex@example.com',
+      summary: 'Builds reliable applications.',
+    }
+    const importedResume: Resume = {
+      ...resume,
+      id: 'imported-resume',
+      career_profile_id: importedProfile.id,
+      title: 'Alex Resume',
+      target_role: 'Software Engineer',
+    }
+    mocks.importResume.mockResolvedValue({
+      career_profile: importedProfile,
+      resume: importedResume,
+      extracted_character_count: 300,
+    })
+    mocks.updateResume.mockResolvedValue(importedResume)
+    mocks.getCareerProfiles.mockResolvedValue([importedProfile])
+    mocks.getResumeSections.mockResolvedValue({
+      resume_id: importedResume.id,
+      sections: [
+        { section_type: 'work_experience', items: [{ item_id: 'experience-1', display_order: 0 }] },
+        { section_type: 'project', items: [{ item_id: 'project-1', display_order: 0 }] },
+      ],
+    })
+    mocks.getSectionRecords.mockImplementation((type: string) => Promise.resolve(
+      type === 'work_experience'
+        ? [{
+            id: 'experience-1',
+            company_name: 'Example Labs',
+            job_title: 'Software Engineer',
+            employment_type: 'Full-time',
+            location: 'Toronto',
+            start_date: '2023-02-01',
+            end_date: null,
+            is_current: true,
+            description: 'Built a production API.',
+            created_at: '2025-01-01T00:00:00Z',
+            updated_at: '2025-01-01T00:00:00Z',
+          }]
+        : type === 'project'
+          ? [{
+              id: 'project-1',
+              project_name: 'Resume Studio',
+              role: 'Developer',
+              technologies: 'React, FastAPI',
+              project_url: null,
+              description: 'Built an ATS resume editor.',
+              responsibilities: null,
+              achievements: null,
+              created_at: '2025-01-01T00:00:00Z',
+              updated_at: '2025-01-01T00:00:00Z',
+            }]
+          : [],
+    ))
+    renderBuilder()
+
+    const input = document.querySelector('input[type="file"]')
+    expect(input).not.toBeNull()
+    await user.upload(
+      input as HTMLInputElement,
+      new File(['resume text'], 'alex-resume.docx', {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      }),
+    )
+
+    expect(await screen.findByDisplayValue('Alex Example')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('alex@example.com')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Example Labs')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Resume Studio')).toBeInTheDocument()
+    expect(await screen.findByText('Resume successfully imported! Please review your sections below.')).toBeInTheDocument()
+    expect(mocks.importResume).toHaveBeenCalledOnce()
+  })
+
   it('shows email validation and prevents an invalid PDF export', async () => {
     const user = userEvent.setup()
     renderBuilder({ initialResume: resume, profiles: [profile] })

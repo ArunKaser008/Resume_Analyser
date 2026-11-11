@@ -5,6 +5,13 @@ from uuid import uuid4
 
 from docx import Document
 
+from app.models.achievement import Achievement
+from app.models.education import Education
+from app.models.project import Project
+from app.models.resume_section_item import ResumeSectionItem
+from app.models.technical_skill import TechnicalSkill
+from app.models.work_experience import WorkExperience
+from app.schemas.resume_import import ResumeImportData
 from app.services.resume_document_service import ResumeDocumentService
 from app.services.resume_docx_service import ResumeDOCXService
 from app.services.resume_content_override_service import (
@@ -13,6 +20,27 @@ from app.services.resume_content_override_service import (
 
 
 class ResumeDocumentServiceTests(unittest.TestCase):
+    @staticmethod
+    def _mock_database():
+        db = Mock()
+
+        def assign_ids():
+            records = [
+                call.args[0]
+                for call in db.add.call_args_list
+            ]
+            records.extend(
+                record
+                for call in db.add_all.call_args_list
+                for record in call.args[0]
+            )
+            for record in records:
+                if getattr(record, "id", None) is None:
+                    record.id = uuid4()
+
+        db.flush.side_effect = assign_ids
+        return db
+
     def test_extracts_docx_paragraphs_and_tables(self):
         source = Document()
         source.add_paragraph("Avery Example")
@@ -43,18 +71,14 @@ class ResumeDocumentServiceTests(unittest.TestCase):
         source.add_paragraph("Avery Example")
         output = BytesIO()
         source.save(output)
-        db = Mock()
-        profile = None
+        db = self._mock_database()
 
-        def flush():
-            nonlocal profile
-            profile = db.add.call_args_list[0].args[0]
-            profile.id = uuid4()
-
-        db.flush.side_effect = flush
-
-        imported_profile, resume, character_count = (
-            ResumeDocumentService.import_resume(
+        with patch(
+            "app.services.resume_document_service.ResumeImportParser.parse",
+            return_value=ResumeImportData(),
+        ):
+            imported_profile, resume, character_count = (
+                ResumeDocumentService.import_resume(
                 db=db,
                 filename="avery-resume.docx",
                 content=output.getvalue(),
@@ -63,7 +87,7 @@ class ResumeDocumentServiceTests(unittest.TestCase):
                 title=None,
                 target_role="Junior Engineer",
             )
-        )
+            )
 
         self.assertEqual(imported_profile.profile_type, "fresher")
         self.assertEqual(resume.career_profile_id, imported_profile.id)
@@ -77,18 +101,21 @@ class ResumeDocumentServiceTests(unittest.TestCase):
         source.add_paragraph("Avery Example")
         output = BytesIO()
         source.save(output)
-        db = Mock()
-        db.flush.side_effect = lambda: setattr(db.add.call_args_list[0].args[0], "id", uuid4())
+        db = self._mock_database()
 
-        profile, _, _ = ResumeDocumentService.import_resume(
-            db=db,
-            filename="candidate.docx",
-            content=output.getvalue(),
-            profile_type="experienced",
-            full_name=None,
-            title=None,
-            target_role=None,
-        )
+        with patch(
+            "app.services.resume_document_service.ResumeImportParser.parse",
+            return_value=ResumeImportData(),
+        ):
+            profile, _, _ = ResumeDocumentService.import_resume(
+                db=db,
+                filename="candidate.docx",
+                content=output.getvalue(),
+                profile_type="experienced",
+                full_name=None,
+                title=None,
+                target_role=None,
+            )
 
         self.assertEqual(profile.full_name, "Avery Example")
 
@@ -97,22 +124,131 @@ class ResumeDocumentServiceTests(unittest.TestCase):
         source.add_paragraph("Avery Example")
         output = BytesIO()
         source.save(output)
-        db = Mock()
-        db.flush.side_effect = lambda: setattr(db.add.call_args_list[0].args[0], "id", uuid4())
+        db = self._mock_database()
 
-        profile, resume, _ = ResumeDocumentService.import_resume(
-            db=db,
-            filename="avery-resume.docx",
-            content=output.getvalue(),
-            profile_type="student",
-            full_name="Avery Example",
-            title=None,
-            target_role="Software Engineer",
-        )
+        with patch(
+            "app.services.resume_document_service.ResumeImportParser.parse",
+            return_value=ResumeImportData(),
+        ):
+            profile, resume, _ = ResumeDocumentService.import_resume(
+                db=db,
+                filename="avery-resume.docx",
+                content=output.getvalue(),
+                profile_type="student",
+                full_name="Avery Example",
+                title=None,
+                target_role="Software Engineer",
+            )
 
         self.assertEqual(profile.profile_type, "student")
         self.assertIsNone(profile.professional_title)
         self.assertIsNone(resume.target_role)
+
+    def test_import_maps_structured_resume_data_to_profile_records_and_sections(self):
+        source = Document()
+        source.add_paragraph("Alex Example")
+        output = BytesIO()
+        source.save(output)
+        db = self._mock_database()
+        structured_data = ResumeImportData.model_validate({
+            "personal_info": {
+                "full_name": "Alex Example",
+                "email": "alex@example.com",
+                "phone": "+1 555 123 4567",
+                "city": "Toronto",
+                "professional_title": "Software Engineer",
+                "summary": "Builds reliable applications.",
+                "github_url": "github.com/alex",
+            },
+            "education": [{
+                "institution_name": "Example University",
+                "degree": "BSc",
+                "field_of_study": "Computer Science",
+                "start_date": "2021-09",
+                "end_date": "2025-06",
+                "grade": "3.8 GPA",
+            }],
+            "work_experience": [{
+                "company_name": "Example Labs",
+                "job_title": "Software Engineer",
+                "start_date": "2023-02",
+                "end_date": "Present",
+                "is_current": True,
+                "description": "Built an API used by 10K users.",
+            }],
+            "skills": ["Python", {"skill_name": "PostgreSQL", "category": "Database"}],
+            "projects": [{
+                "project_name": "Resume Studio",
+                "role": "Developer",
+                "technologies": "React, FastAPI",
+                "project_url": "https://example.com/project",
+            }],
+            "achievements": [{
+                "title": "Hackathon finalist",
+                "issuing_organization": "Example Hack",
+            }],
+        })
+
+        with patch(
+            "app.services.resume_document_service.ResumeImportParser.parse",
+            return_value=structured_data,
+        ):
+            profile, resume, _ = ResumeDocumentService.import_resume(
+                db=db,
+                filename="alex-resume.docx",
+                content=output.getvalue(),
+                profile_type="experienced",
+                full_name=None,
+                title=None,
+                target_role=None,
+            )
+
+        self.assertEqual(profile.email, "alex@example.com")
+        self.assertEqual(profile.city, "Toronto")
+        self.assertEqual(profile.github_url, "https://github.com/alex")
+        self.assertEqual(resume.source_text, "Alex Example")
+        self.assertEqual(resume.target_role, "Software Engineer")
+
+        created_records = [
+            record
+            for call in db.add_all.call_args_list
+            for record in call.args[0]
+        ]
+        self.assertEqual(sum(isinstance(item, Education) for item in created_records), 1)
+        self.assertEqual(sum(isinstance(item, WorkExperience) for item in created_records), 1)
+        self.assertEqual(sum(isinstance(item, TechnicalSkill) for item in created_records), 2)
+        self.assertEqual(sum(isinstance(item, Project) for item in created_records), 1)
+        self.assertEqual(sum(isinstance(item, Achievement) for item in created_records), 1)
+        imported_experience = next(
+            item for item in created_records if isinstance(item, WorkExperience)
+        )
+        self.assertTrue(imported_experience.is_current)
+        self.assertIsNone(imported_experience.end_date)
+
+        section_items = [
+            item for item in created_records if isinstance(item, ResumeSectionItem)
+        ]
+        self.assertEqual(
+            {item.section_type for item in section_items},
+            {"education", "work_experience", "technical_skill", "project", "achievement"},
+        )
+        self.assertTrue(all(item.resume_id == resume.id for item in section_items))
+
+    def test_import_schema_ignores_malformed_entries_and_defaults_missing_sections(self):
+        parsed = ResumeImportData.model_validate({
+            "personal_info": None,
+            "education": "not-an-array",
+            "work_experience": [None, {"company_name": "Example Labs"}],
+            "skills": ["Python", None, {"skill_name": "PostgreSQL"}],
+        })
+
+        self.assertEqual(parsed.personal_info.full_name, None)
+        self.assertEqual(parsed.education, [])
+        self.assertEqual(len(parsed.work_experience), 1)
+        self.assertEqual(
+            [skill.skill_name for skill in parsed.skills],
+            ["Python", "PostgreSQL"],
+        )
 
     def test_rejects_unsupported_file_types(self):
         with self.assertRaisesRegex(ValueError, "PDF, DOCX, or TXT"):

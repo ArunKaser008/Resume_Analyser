@@ -13,8 +13,10 @@ from fastapi import (
     UploadFile,
     status,
 )
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
+from app.services.ai_client import AIConfigurationError, AIResponseError
 from app.core.database import get_db
 from app.schemas.resume import (
     ResumeCreate,
@@ -51,16 +53,15 @@ async def import_resume(
     content = await file.read(MAX_UPLOAD_BYTES + 1)
 
     try:
-        profile, resume, character_count = (
-            ResumeDocumentService.import_resume(
-                db=db,
-                filename=file.filename or "",
-                content=content,
-                profile_type=profile_type,
-                full_name=full_name,
-                title=title,
-                target_role=target_role,
-            )
+        profile, resume, character_count = await run_in_threadpool(
+            ResumeDocumentService.import_resume,
+            db=db,
+            filename=file.filename or "",
+            content=content,
+            profile_type=profile_type,
+            full_name=full_name,
+            title=title,
+            target_role=target_role,
         )
         return {
             "career_profile": profile,
@@ -71,6 +72,16 @@ async def import_resume(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
+        ) from exc
+    except AIConfigurationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Resume parsing is not configured. Set GEMINI_API_KEY in the backend environment.",
+        ) from exc
+    except AIResponseError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to extract structured resume data. Please try again.",
         ) from exc
 
 

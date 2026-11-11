@@ -263,6 +263,7 @@ export default function ResumeBuilderPage({
   const [matchLoading, setMatchLoading] = useState(false)
   const [expanded, setExpanded] = useState<SectionType | 'personal' | 'projects' | null>('personal')
   const [loading, setLoading] = useState(false)
+  const [importing, setImporting] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -304,7 +305,7 @@ export default function ResumeBuilderPage({
     currentMasterRef.current = master
   }, [master])
 
-  const loadResume = useCallback(async (resume: Resume) => {
+  const loadResume = useCallback(async (resume: Resume): Promise<boolean> => {
     setLoading(true)
     setError('')
     setNotice('')
@@ -352,9 +353,11 @@ export default function ResumeBuilderPage({
       setNewRole(safeResume.target_role || '')
       setSelectedTemplate(safeResume.template_name)
       setActiveResumeId(resume.id)
+      return true
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : cause instanceof Error ? cause.message : 'Unable to load this resume.')
       setMaster(null)
+      return false
     } finally {
       setLoading(false)
     }
@@ -487,6 +490,7 @@ export default function ResumeBuilderPage({
       return
     }
     setLoading(true)
+    setImporting(true)
     try {
       const resume = await createResume({
         title: newTitle.trim() || 'My Resume',
@@ -541,12 +545,14 @@ export default function ResumeBuilderPage({
       await onChanged()
       onResumeUpdated(resume)
       onProfileChanged(imported.career_profile)
-      await loadResume(resume)
-      setNotice('Resume imported and parsed. Review the extracted details before exporting.')
+      const loaded = await loadResume(resume)
+      if (!loaded) return
+      setNotice('Resume successfully imported! Please review your sections below.')
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'Unable to import this resume.')
     } finally {
       setLoading(false)
+      setImporting(false)
     }
   }, [loadResume, newRole, onChanged, onProfileChanged, onResumeUpdated, persona, selectedTemplate])
 
@@ -840,7 +846,7 @@ export default function ResumeBuilderPage({
   }
 
   if (activeResumeId && master) return renderWorkspace()
-  if (loading) return <div className="modern-builder-loading panel" role="status"><span className="spinner" /><p>Loading your resume workspace…</p></div>
+  if (loading) return <div className="modern-builder-loading panel" role="status"><span className="spinner" /><p>{importing ? 'Analyzing resume & mapping sections...' : 'Loading your resume workspace…'}</p></div>
   if (activeResumeId && !master && !error) return <div className="modern-builder-loading panel" role="status"><span className="spinner" /><p>Loading resume details…</p></div>
 
   return <main className="modern-builder-home">
